@@ -8,7 +8,6 @@ import {
 	efectivoTotal,
 	formatMonto,
 } from './utils/calculos';
-import { loadState, saveState } from './utils/storage';
 import { loadStateFromApi, saveStateToApi } from './utils/api';
 import PedidosView from './components/PedidosView';
 import DetalleMesView from './components/DetalleMesView';
@@ -78,20 +77,8 @@ export default function App() {
 						ajustes: ajustes || s.ajustes,
 					}));
 				}
-			} catch {
-				const local = loadState();
-				if (!cancelled && local && typeof local === 'object') {
-					const rawPedidos = Array.isArray(local.pedidos) ? local.pedidos : [];
-					const pedidos = rawPedidos.map((p) => ({
-						...p,
-						tipoVenta: p.tipoVenta === 'transferencia' ? 'transferencia' : 'efectivo',
-					}));
-					setState((s) => ({
-						...s,
-						...local,
-						pedidos: pedidos.length ? pedidos : s.pedidos,
-					}));
-				}
+			} catch (_) {
+				// Sin fallback: solo BD Supabase
 			}
 		})();
 		return () => { cancelled = true; };
@@ -99,8 +86,7 @@ export default function App() {
 
 	useEffect(() => {
 		const t = setTimeout(() => {
-			saveState(state);
-			saveStateToApi(state).catch(() => saveState(state));
+			saveStateToApi(state).catch(() => {});
 		}, 400);
 		return () => clearTimeout(t);
 	}, [state]);
