@@ -4,6 +4,9 @@ const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANNON_KEY;
 const supabase = url && key ? createClient(url, key) : null;
 
+/** True si Supabase está configurado; en ese caso la app no debe usar localStorage. */
+export const isSupabaseConfigured = Boolean(supabase);
+
 function mapPedido(r) {
 	const fecha = r.fecha ? String(r.fecha).slice(0, 10) : '';
 	return {

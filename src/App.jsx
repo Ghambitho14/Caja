@@ -10,7 +10,7 @@ import {
 	formatFecha,
 } from './utils/calculos';
 import { loadState, saveState } from './utils/storage';
-import { loadStateFromApi, saveStateToApi, deletePedidoFromApi } from './utils/api';
+import { loadStateFromApi, saveStateToApi, deletePedidoFromApi, isSupabaseConfigured } from './utils/api';
 import PedidosView from './components/PedidosView';
 import DetalleMesView from './components/DetalleMesView';
 import GastosView from './components/GastosView';
@@ -47,7 +47,8 @@ export default function App() {
 	const [semanaIndex, setSemanaIndex] = useState(0);
 	const [diaSeleccionado, setDiaSeleccionado] = useState(null);
 	const [sidebarAbierto, setSidebarAbierto] = useState(false);
-	const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+	/** True solo cuando se cargó bien desde Supabase; solo entonces se permite guardar en API. */
+	const [hasLoadedFromApi, setHasLoadedFromApi] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -55,9 +56,11 @@ export default function App() {
 			const now = new Date();
 			const year = now.getFullYear();
 			const month = now.getMonth() + 1;
-			try {
-				const loaded = await loadStateFromApi(year, month);
-				if (!cancelled && loaded) {
+
+			if (isSupabaseConfigured) {
+				try {
+					const loaded = await loadStateFromApi(year, month);
+					if (cancelled || !loaded) return;
 					const rawPedidos = Array.isArray(loaded.pedidos) ? loaded.pedidos : (loaded.pedidos ?? []);
 					const pedidos = rawPedidos.map((p) => {
 						const fecha = p.fecha ? String(p.fecha).slice(0, 10) : '';
@@ -82,58 +85,66 @@ export default function App() {
 						: undefined;
 					setState((s) => ({
 						...s,
-						pedidos: pedidos.length > 0 ? pedidos : s.pedidos,
-						gastos: gastos.length > 0 ? gastos : s.gastos,
+						pedidos,
+						gastos,
 						metas: metas || s.metas,
 						ajustes: ajustes || s.ajustes,
 					}));
-					setHasLoadedOnce(true);
+					setHasLoadedFromApi(true);
+				} catch (_) {
+					// No cargar desde localStorage: evitar escribir estado vacío o viejo a Supabase.
+					// El estado se queda en estadoInicial; no se marca hasLoadedFromApi, así que no se guardará en API.
 				}
-			} catch (_) {
-				const local = loadState();
-				if (!cancelled && local && typeof local === 'object') {
-					const rawPedidos = Array.isArray(local.pedidos) ? local.pedidos : [];
-					const pedidos = rawPedidos.map((p) => ({
-						...p,
-						id: p.id ?? p._id,
-						fecha: p.fecha ? String(p.fecha).slice(0, 10) : '',
-						descripcion: p.descripcion ?? '',
-						monto: Number(p.monto) || 0,
-						tipoVenta: p.tipoVenta === 'transferencia' ? 'transferencia' : 'efectivo',
-					}));
-					const gastos = Array.isArray(local.gastos) ? local.gastos : [];
-					const metas = Array.isArray(local.metas) && local.metas.length ? local.metas : undefined;
-					const rawA = local.ajustes;
-					const ajustes = rawA && typeof rawA === 'object'
-						? {
-							dineroMesPasado: Number(rawA.dineroMesPasado ?? rawA.dinero_mes_pasado) || 0,
-							efectivoInicialSemana: rawA.efectivoInicialSemana && typeof rawA.efectivoInicialSemana === 'object' ? rawA.efectivoInicialSemana : {},
-							efectivoCajaBloqueadoSemana: rawA.efectivoCajaBloqueadoSemana && typeof rawA.efectivoCajaBloqueadoSemana === 'object' ? rawA.efectivoCajaBloqueadoSemana : {},
-						}
-						: undefined;
-					setState((s) => ({
-						...s,
-						pedidos: pedidos.length > 0 ? pedidos : s.pedidos,
-						gastos: gastos.length > 0 ? gastos : s.gastos,
-						metas: metas || s.metas,
-						ajustes: ajustes || s.ajustes,
-					}));
-				}
-				setHasLoadedOnce(true);
+				return;
 			}
+
+			// Sin Supabase: usar solo localStorage (ej. desarrollo local).
+			const local = loadState();
+			if (!cancelled && local && typeof local === 'object') {
+				const rawPedidos = Array.isArray(local.pedidos) ? local.pedidos : [];
+				const pedidos = rawPedidos.map((p) => ({
+					...p,
+					id: p.id ?? p._id,
+					fecha: p.fecha ? String(p.fecha).slice(0, 10) : '',
+					descripcion: p.descripcion ?? '',
+					monto: Number(p.monto) || 0,
+					tipoVenta: p.tipoVenta === 'transferencia' ? 'transferencia' : 'efectivo',
+				}));
+				const gastos = Array.isArray(local.gastos) ? local.gastos : [];
+				const metas = Array.isArray(local.metas) && local.metas.length ? local.metas : undefined;
+				const rawA = local.ajustes;
+				const ajustes = rawA && typeof rawA === 'object'
+					? {
+						dineroMesPasado: Number(rawA.dineroMesPasado ?? rawA.dinero_mes_pasado) || 0,
+						efectivoInicialSemana: rawA.efectivoInicialSemana && typeof rawA.efectivoInicialSemana === 'object' ? rawA.efectivoInicialSemana : {},
+						efectivoCajaBloqueadoSemana: rawA.efectivoCajaBloqueadoSemana && typeof rawA.efectivoCajaBloqueadoSemana === 'object' ? rawA.efectivoCajaBloqueadoSemana : {},
+					}
+					: undefined;
+				setState((s) => ({
+					...s,
+					pedidos: pedidos.length > 0 ? pedidos : s.pedidos,
+					gastos: gastos.length > 0 ? gastos : s.gastos,
+					metas: metas || s.metas,
+					ajustes: ajustes || s.ajustes,
+				}));
+			}
+			setHasLoadedFromApi(true);
 		})();
 		return () => { cancelled = true; };
 	}, []);
 
 	useEffect(() => {
-		saveState(state);
-		if (hasLoadedOnce) {
-			const t = setTimeout(() => {
-				saveStateToApi(state).catch(() => {});
-			}, 400);
-			return () => clearTimeout(t);
+		if (isSupabaseConfigured) {
+			if (hasLoadedFromApi) {
+				const t = setTimeout(() => {
+					saveStateToApi(state).catch(() => {});
+				}, 400);
+				return () => clearTimeout(t);
+			}
+		} else {
+			saveState(state);
 		}
-	}, [state, hasLoadedOnce]);
+	}, [state, hasLoadedFromApi]);
 
 	const { year, month, pedidos = [], gastos = [], ajustes: rawAjustes, metas } = state;
 	const ajustes = rawAjustes && typeof rawAjustes === 'object'

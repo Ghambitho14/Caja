@@ -4,6 +4,7 @@ export function id() {
 	return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
 }
 
+/** Solo se usa cuando Supabase NO está configurado (ej. desarrollo sin backend). Ver App.jsx. */
 export function loadState() {
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
@@ -14,6 +15,7 @@ export function loadState() {
 	}
 }
 
+/** Solo se usa cuando Supabase NO está configurado. Ver App.jsx. */
 export function saveState(state) {
 	try {
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
