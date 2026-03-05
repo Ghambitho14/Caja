@@ -447,12 +447,21 @@
 		align-items: stretch;
 		gap: 0.75rem;
 	}
+	.pedidos-view .form-pedido input {
+		width: 100%;
+		max-width: 100%;
+	}
 	.pedidos-view .form-pedido input[type="text"]:first-of-type {
 		min-width: 0;
 		width: 100%;
 	}
 	.pedidos-view .form-pedido-tipo {
 		flex-wrap: wrap;
+		width: 100%;
+	}
+	.pedidos-view .form-pedido .btn-tipo {
+		flex: 1 1 calc(50% - 0.25rem);
+		text-align: center;
 	}
 	.pedidos-view .form-pedido .btn-tipo {
 		min-height: 44px;
@@ -460,6 +469,7 @@
 	.pedidos-view .form-pedido button[type="submit"],
 	.pedidos-view .form-pedido button[type="button"] {
 		min-height: 44px;
+		width: 100%;
 	}
 	.pedidos-view .lista-pedidos-dia li {
 		flex-wrap: wrap;
@@ -467,6 +477,17 @@
 	}
 	.pedidos-view .lista-pedidos-dia .pedido-desc {
 		width: 100%;
+	}
+	.pedidos-efectivo-caja-semana .pedidos-input-efectivo-semana {
+		width: 100%;
+		max-width: 12rem;
+	}
+	.pedidos-detalle-tabla {
+		display: block;
+		width: 100%;
+		max-width: 100%;
+		overflow-x: auto;
+		white-space: nowrap;
 	}
 }
 

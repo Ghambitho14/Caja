@@ -11,6 +11,36 @@
 	font-weight: 700;
 }
 
+.semana-efectivo-inicial {
+	margin-bottom: 0.75rem;
+}
+
+.semana-efectivo-inicial label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	font-size: 0.85rem;
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.semana-efectivo-inicial input {
+	width: 180px;
+	max-width: 100%;
+	padding: 0.5rem 0.65rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+}
+
+.semana-efectivo-total {
+	margin-bottom: 1rem;
+	font-size: 0.95rem;
+}
+
+.semana-efectivo-total strong {
+	color: var(--accent);
+}
+
 .tarjetas-dias {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -98,7 +128,13 @@
 }
 
 @media (max-width: 640px) {
+	.semana-efectivo-inicial input {
+		width: 100%;
+	}
 	.tarjetas-dias {
 		grid-template-columns: 1fr;
+	}
+	.lista-pedidos {
+		max-height: 220px;
 	}
 }

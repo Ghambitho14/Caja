@@ -76,6 +76,14 @@
 		flex-wrap: wrap;
 		gap: 0.5rem;
 	}
+	.semana-nav button {
+		flex: 1 1 100%;
+		min-height: 44px;
+	}
+	.semana-nav span {
+		width: 100%;
+		text-align: center;
+	}
 }
 
 .detalle-mes-view table {

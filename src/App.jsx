@@ -187,17 +187,17 @@ export default function App() {
 
 	return (
 		<div className={`app ${sidebarAbierto ? 'sidebar-open' : ''}`}>
-			<button
-				type="button"
-				className="sidebar-toggle"
-				onClick={() => setSidebarAbierto((v) => !v)}
-				aria-label={sidebarAbierto ? 'Cerrar menú' : 'Abrir menú'}
-				aria-expanded={sidebarAbierto}
-			>
-				<span className="sidebar-toggle-icon" aria-hidden />
-			</button>
 			<div className="sidebar-overlay" aria-hidden onClick={() => setSidebarAbierto(false)} />
 			<nav className="navbar">
+				<button
+					type="button"
+					className="sidebar-toggle"
+					onClick={() => setSidebarAbierto((v) => !v)}
+					aria-label={sidebarAbierto ? 'Cerrar menú' : 'Abrir menú'}
+					aria-expanded={sidebarAbierto}
+				>
+					<span className="sidebar-toggle-icon" aria-hidden />
+				</button>
 				<h1 className="navbar-titulo">Sistema de Caja</h1>
 				<div className="navbar-metricas">
 					<div className="navbar-metrica">

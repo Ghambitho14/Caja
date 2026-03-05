@@ -185,6 +185,10 @@
 }
 
 @media (max-width: 640px) {
+	.gastos-totales {
+		flex-direction: column;
+		gap: 0.35rem;
+	}
 	.gastos-view .tabs {
 		flex-wrap: wrap;
 	}
@@ -192,7 +196,32 @@
 		flex: 1 1 auto;
 		min-width: 0;
 	}
+	.form-gasto {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.form-gasto input {
+		width: 100%;
+		max-width: 100%;
+	}
+	.form-gasto-tipo {
+		width: 100%;
+	}
+	.form-gasto .btn-tipo-gasto {
+		flex: 1 1 calc(50% - 0.25rem);
+		text-align: center;
+		min-height: 44px;
+	}
+	.form-gasto button[type="submit"],
+	.form-gasto button[type="button"]:not(.btn-tipo-gasto) {
+		width: 100%;
+		min-height: 44px;
+	}
 	.gastos-view .lista-gastos li {
 		flex-wrap: wrap;
+		gap: 0.45rem;
+	}
+	.lista-gastos .gasto-desc {
+		width: 100%;
 	}
 }
