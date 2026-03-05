@@ -1,0 +1,83 @@
+/* ---- MetasView (Compromisos) ---- */
+.metas-desc {
+	margin: 0 0 1rem 0;
+	font-size: 0.9rem;
+	color: var(--text-muted);
+}
+
+.metas-total {
+	margin-bottom: 1.25rem;
+	font-size: 1rem;
+	font-weight: 500;
+	color: var(--text);
+}
+
+.metas-total strong {
+	color: var(--accent);
+}
+
+.lista-metas {
+	list-style: none;
+	margin: 0 0 1.25rem 0;
+	padding: 0;
+}
+
+.lista-metas li {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.6rem 0;
+	border-bottom: 1px solid var(--border);
+}
+
+.meta-nombre {
+	min-width: 140px;
+	font-weight: 500;
+	color: var(--text);
+}
+
+.meta-monto {
+	font-weight: 600;
+	color: var(--text);
+}
+
+.lista-metas input {
+	width: 110px;
+	padding: 0.45rem 0.6rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.lista-metas input:focus {
+	outline: none;
+	border-color: var(--border-focus);
+	box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.12);
+}
+
+.btn-agregar {
+	padding: 0.5rem 1.25rem;
+	border: 1px dashed var(--border);
+	background: var(--bg-app);
+	border-radius: var(--radius-sm);
+	font-weight: 500;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn-agregar:hover {
+	background: var(--border);
+	border-color: var(--text-muted);
+	color: var(--text);
+}
+
+@media (max-width: 640px) {
+	.lista-metas li {
+		flex-wrap: wrap;
+	}
+	.meta-nombre {
+		min-width: 0;
+		width: 100%;
+	}
+}

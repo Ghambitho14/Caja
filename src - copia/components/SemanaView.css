@@ -1,0 +1,104 @@
+/* ---- SemanaView ---- */
+.semana-view .semana-total {
+	margin-bottom: 1.25rem;
+	font-size: 1rem;
+	font-weight: 500;
+	color: var(--text);
+}
+
+.semana-view .semana-total strong {
+	color: var(--accent);
+	font-weight: 700;
+}
+
+.tarjetas-dias {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 1rem;
+}
+
+.tarjeta-dia {
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	overflow: hidden;
+	background: var(--bg-card);
+	box-shadow: var(--shadow);
+	transition: box-shadow 0.15s;
+}
+
+.tarjeta-dia:hover {
+	box-shadow: var(--shadow-md);
+}
+
+.tarjeta-dia header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.65rem 1rem;
+	background: var(--bg-sidebar);
+	color: var(--text-inverse);
+	font-size: 0.8125rem;
+	font-weight: 600;
+}
+
+.tarjeta-dia .dia-total {
+	font-weight: 700;
+}
+
+.lista-pedidos {
+	list-style: none;
+	margin: 0;
+	padding: 0.5rem 1rem;
+	max-height: 180px;
+	overflow-y: auto;
+}
+
+.lista-pedidos li {
+	display: flex;
+	justify-content: space-between;
+	gap: 0.5rem;
+	align-items: center;
+	padding: 0.4rem 0;
+	font-size: 0.8125rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.lista-pedidos li:last-child {
+	border-bottom: none;
+}
+
+.lista-pedidos .pedido-desc {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+
+.lista-pedidos .pedido-monto {
+	font-weight: 600;
+	color: var(--text);
+}
+
+.btn-ver-dia {
+	display: block;
+	width: 100%;
+	padding: 0.5rem 1rem;
+	border: none;
+	background: var(--bg-app);
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--text);
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.btn-ver-dia:hover {
+	background: var(--border);
+}
+
+@media (max-width: 640px) {
+	.tarjetas-dias {
+		grid-template-columns: 1fr;
+	}
+}

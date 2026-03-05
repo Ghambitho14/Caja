@@ -11,7 +11,6 @@ export default function PedidosView({
 	onDiaSeleccionadoChange,
 	pedidos,
 	onPedidosChange,
-	onEliminarPedido,
 	ajustes = {},
 	onAjustesChange,
 }) {
@@ -61,7 +60,6 @@ export default function PedidosView({
 	}
 
 	function eliminar(idElim) {
-		if (onEliminarPedido) onEliminarPedido(idElim);
 		onPedidosChange(pedidos.filter((p) => p.id !== idElim));
 		setEditando(null);
 	}
@@ -162,6 +160,63 @@ export default function PedidosView({
 				</div>
 			</div>
 
+			<div className="pedidos-semana">
+				<div className="pedidos-grid-dias">
+					{semanaActual.map((fecha) => {
+						const esSeleccionado = fecha === fechaInicial;
+						const pedidosDelDia = pedidos.filter((p) => p.fecha === fecha);
+						const totalDiaVal = totalDia(pedidos, fecha);
+						return (
+							<div
+								key={fecha}
+								role="button"
+								tabIndex={0}
+								className={`pedidos-cuadrado-dia ${esSeleccionado ? 'selected' : ''}`}
+								onClick={() => onDiaSeleccionadoChange(fecha)}
+								onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onDiaSeleccionadoChange(fecha); } }}
+							>
+								<div className="pedidos-cuadrado-titulo">{formatFechaDiaMes(fecha)}</div>
+								<table className="pedidos-cuadrado-tabla">
+									<colgroup>
+										<col />
+										<col />
+										<col />
+									</colgroup>
+									<thead>
+										<tr>
+											<th>Pedido</th>
+											<th>Tipo</th>
+											<th>Monto</th>
+										</tr>
+									</thead>
+									<tbody>
+										{pedidosDelDia.length === 0 ? (
+											<tr>
+												<td colSpan={3} className="sin-datos">—</td>
+											</tr>
+										) : (
+											pedidosDelDia.map((p) => (
+												<tr key={p.id}>
+													<td>{p.descripcion || '—'}</td>
+													<td className={`tipo-${p.tipoVenta || 'efectivo'}`}>{p.tipoVenta === 'transferencia' ? 'Transferencia' : 'Efectivo'}</td>
+													<td>{formatMonto(p.monto)}</td>
+												</tr>
+											))
+										)}
+									</tbody>
+									<tfoot>
+										<tr>
+											<td colSpan={2}>Total día</td>
+											<td className="total-dia-celda">{formatMonto(totalDiaVal)}</td>
+										</tr>
+									</tfoot>
+								</table>
+							</div>
+						);
+					})}
+				</div>
+			</div>
+
 			<div className="dia-total-row dia-total-destacado">
 				Total del día: <strong>{formatMonto(total)}</strong>
 			</div>
@@ -240,63 +295,6 @@ export default function PedidosView({
 					))
 				)}
 			</ul>
-
-			<div className="pedidos-semana">
-				<div className="pedidos-grid-dias">
-					{semanaActual.map((fecha) => {
-						const esSeleccionado = fecha === fechaInicial;
-						const pedidosDelDia = pedidos.filter((p) => p.fecha === fecha);
-						const totalDiaVal = totalDia(pedidos, fecha);
-						return (
-							<div
-								key={fecha}
-								role="button"
-								tabIndex={0}
-								className={`pedidos-cuadrado-dia ${esSeleccionado ? 'selected' : ''}`}
-								onClick={() => onDiaSeleccionadoChange(fecha)}
-								onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onDiaSeleccionadoChange(fecha); } }}
-							>
-								<div className="pedidos-cuadrado-titulo">{formatFechaDiaMes(fecha)}</div>
-								<table className="pedidos-cuadrado-tabla">
-									<colgroup>
-										<col />
-										<col />
-										<col />
-									</colgroup>
-									<thead>
-										<tr>
-											<th>Pedido</th>
-											<th>Tipo</th>
-											<th>Monto</th>
-										</tr>
-									</thead>
-									<tbody>
-										{pedidosDelDia.length === 0 ? (
-											<tr>
-												<td colSpan={3} className="sin-datos">—</td>
-											</tr>
-										) : (
-											pedidosDelDia.map((p) => (
-												<tr key={p.id}>
-													<td>{p.descripcion || '—'}</td>
-													<td className={`tipo-${p.tipoVenta || 'efectivo'}`}>{p.tipoVenta === 'transferencia' ? 'Transferencia' : 'Efectivo'}</td>
-													<td>{formatMonto(p.monto)}</td>
-												</tr>
-											))
-										)}
-									</tbody>
-									<tfoot>
-										<tr>
-											<td colSpan={2}>Total día</td>
-											<td className="total-dia-celda">{formatMonto(totalDiaVal)}</td>
-										</tr>
-									</tfoot>
-								</table>
-							</div>
-						);
-					})}
-				</div>
-			</div>
 
 			<div className="pedidos-detalle">
 				<h3 className="pedidos-detalle-titulo">Detalle</h3>

@@ -10,7 +10,7 @@ import {
 	formatFecha,
 } from './utils/calculos';
 import { loadState, saveState } from './utils/storage';
-import { loadStateFromApi, saveStateToApi, deletePedidoFromApi } from './utils/api';
+import { loadStateFromApi, saveStateToApi } from './utils/api';
 import PedidosView from './components/PedidosView';
 import DetalleMesView from './components/DetalleMesView';
 import GastosView from './components/GastosView';
@@ -258,7 +258,6 @@ export default function App() {
 							onDiaSeleccionadoChange={setDiaSeleccionado}
 							pedidos={pedidos}
 							onPedidosChange={setPedidos}
-							onEliminarPedido={(id) => deletePedidoFromApi(id).catch(() => {})}
 							ajustes={ajustes}
 							onAjustesChange={setAjustes}
 						/>

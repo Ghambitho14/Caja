@@ -53,11 +53,14 @@ export async function loadStateFromApi(year, month) {
 	return { pedidos, gastos, metas, ajustes };
 }
 
-/** Borra un pedido en Supabase (solo cuando el usuario pulsa Eliminar). */
-export async function deletePedidoFromApi(id) {
-	if (!supabase || !id) return;
-	const { error } = await supabase.from('pedidos').delete().eq('id', id);
-	if (error) throw new Error(error.message);
+const BATCH = 100;
+
+async function deleteIdsInChunks(table, ids) {
+	for (let i = 0; i < ids.length; i += BATCH) {
+		const chunk = ids.slice(i, i + BATCH);
+		const { error } = await supabase.from(table).delete().in('id', chunk);
+		if (error) throw new Error(error.message);
+	}
 }
 
 export async function saveStateToApi(state) {
@@ -66,7 +69,7 @@ export async function saveStateToApi(state) {
 	const dineroMesPasado = Number(ajustes.dineroMesPasado) || 0;
 	const efectivoInicialSemana = ajustes.efectivoInicialSemana || {};
 
-	// Pedidos: solo upsert. No borrar en la base por estar "fuera" del state (evita pérdida de datos).
+	// Pedidos: upsert (evita 409) y borrar los que ya no están en state
 	if (pedidos.length) {
 		const rows = pedidos.map((p) => ({
 			id: p.id,
@@ -79,19 +82,31 @@ export async function saveStateToApi(state) {
 		const { error: upsP } = await supabase.from('pedidos').upsert(rows, { onConflict: 'id' });
 		if (upsP) throw new Error(upsP.message);
 	}
+	const { data: pedidosIds } = await supabase.from('pedidos').select('id');
+	const idsPedidosState = new Set(pedidos.map((p) => p.id));
+	const toRemoveP = (pedidosIds || []).map((r) => r.id).filter((id) => !idsPedidosState.has(id));
+	if (toRemoveP.length) await deleteIdsInChunks('pedidos', toRemoveP);
 
-	// Gastos: solo upsert
+	// Gastos: upsert y borrar los que ya no están en state
 	if (gastos.length) {
 		const { error: upsG } = await supabase.from('gastos').upsert(gastos, { onConflict: 'id' });
 		if (upsG) throw new Error(upsG.message);
 	}
+	const { data: gastosIds } = await supabase.from('gastos').select('id');
+	const idsGastosState = new Set(gastos.map((g) => g.id));
+	const toRemoveG = (gastosIds || []).map((r) => r.id).filter((id) => !idsGastosState.has(id));
+	if (toRemoveG.length) await deleteIdsInChunks('gastos', toRemoveG);
 
-	// Metas: solo upsert
+	// Metas: upsert y borrar las que ya no están en state
 	if (metas.length) {
 		const rows = metas.map((m) => ({ id: m.id, nombre: m.nombre, monto: Number(m.monto) || 0 }));
 		const { error: upsM } = await supabase.from('metas').upsert(rows, { onConflict: 'id' });
 		if (upsM) throw new Error(upsM.message);
 	}
+	const { data: metasIds } = await supabase.from('metas').select('id');
+	const idsMetasState = new Set(metas.map((m) => m.id));
+	const toRemoveM = (metasIds || []).map((r) => r.id).filter((id) => !idsMetasState.has(id));
+	if (toRemoveM.length) await deleteIdsInChunks('metas', toRemoveM);
 
 	// Upsert ajustes (year, month) — solo dinero_mes_pasado; el efectivo es solo semanal (ajustes_semana)
 	const { error: upsA } = await supabase
