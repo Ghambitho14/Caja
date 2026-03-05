@@ -10,11 +10,22 @@ import {
 	formatFecha,
 } from './utils/calculos';
 import { loadState, saveState } from './utils/storage';
-import { loadStateFromApi, saveStateToApi, deletePedidoFromApi, isSupabaseConfigured } from './utils/api';
+import {
+	loadStateFromApi,
+	saveStateToApi,
+	deletePedidoFromApi,
+	isSupabaseConfigured,
+	getCurrentUser,
+	onAuthStateChange,
+	signOut,
+	getMyAccessProfile,
+} from './utils/api';
 import PedidosView from './components/PedidosView';
 import DetalleMesView from './components/DetalleMesView';
 import GastosView from './components/GastosView';
 import MetasView from './components/MetasView';
+import AuthView from './components/AuthView';
+import AdminUsersView from './components/AdminUsersView';
 import './App.css';
 
 const VISTAS = [
@@ -22,6 +33,7 @@ const VISTAS = [
 	{ id: 'detalle-mes', label: 'Detalle de mes' },
 	{ id: 'gastos', label: 'Gastos' },
 	{ id: 'compromisos', label: 'Compromisos' },
+	{ id: 'admin-usuarios', label: 'Usuarios', onlyAdmin: true },
 ];
 const METAS_INICIALES = [
 	{ id: 'm1', nombre: 'Arriendo', monto: 0 },
@@ -49,9 +61,71 @@ export default function App() {
 	const [sidebarAbierto, setSidebarAbierto] = useState(false);
 	/** True solo cuando se cargó bien desde Supabase; solo entonces se permite guardar en API. */
 	const [hasLoadedFromApi, setHasLoadedFromApi] = useState(false);
+	const [authUser, setAuthUser] = useState(null);
+	const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
+	const [authProfile, setAuthProfile] = useState(null);
+	const [authProfileReady, setAuthProfileReady] = useState(!isSupabaseConfigured);
+
+	useEffect(() => {
+		if (!isSupabaseConfigured) return undefined;
+		let active = true;
+		getCurrentUser()
+			.then((user) => {
+				if (!active) return;
+				setAuthUser(user);
+				setAuthReady(true);
+			})
+			.catch(() => {
+				if (!active) return;
+				setAuthReady(true);
+			});
+		const subscription = onAuthStateChange((user) => {
+			setAuthUser(user);
+			setAuthProfile(null);
+			setAuthProfileReady(!user);
+			setState(estadoInicial());
+			setHasLoadedFromApi(false);
+		});
+		return () => {
+			active = false;
+			subscription.unsubscribe();
+		};
+	}, []);
+
+	useEffect(() => {
+		if (!isSupabaseConfigured) return undefined;
+		if (!authUser) {
+			setAuthProfile(null);
+			setAuthProfileReady(true);
+			return undefined;
+		}
+		let active = true;
+		setAuthProfileReady(false);
+		getMyAccessProfile()
+			.then((profile) => {
+				if (!active) return;
+				setAuthProfile(profile);
+				setAuthProfileReady(true);
+			})
+			.catch(() => {
+				if (!active) return;
+				setAuthProfile(null);
+				setAuthProfileReady(true);
+			});
+		return () => { active = false; };
+	}, [authUser]);
 
 	useEffect(() => {
 		let cancelled = false;
+		if (isSupabaseConfigured && !authReady) return () => { cancelled = true; };
+		if (isSupabaseConfigured && !authUser) {
+			setHasLoadedFromApi(false);
+			return () => { cancelled = true; };
+		}
+		if (isSupabaseConfigured && (!authProfileReady || authProfile?.status !== 'active')) {
+			setHasLoadedFromApi(false);
+			return () => { cancelled = true; };
+		}
 		(async () => {
 			const now = new Date();
 			const year = now.getFullYear();
@@ -59,7 +133,7 @@ export default function App() {
 
 			if (isSupabaseConfigured) {
 				try {
-					const loaded = await loadStateFromApi(year, month);
+					const loaded = await loadStateFromApi(year, month, authUser.id);
 					if (cancelled || !loaded) return;
 					const rawPedidos = Array.isArray(loaded.pedidos) ? loaded.pedidos : (loaded.pedidos ?? []);
 					const pedidos = rawPedidos.map((p) => {
@@ -131,20 +205,20 @@ export default function App() {
 			setHasLoadedFromApi(true);
 		})();
 		return () => { cancelled = true; };
-	}, []);
+	}, [authReady, authUser, authProfileReady, authProfile]);
 
 	useEffect(() => {
 		if (isSupabaseConfigured) {
-			if (hasLoadedFromApi) {
+			if (hasLoadedFromApi && authUser && authProfile?.status === 'active') {
 				const t = setTimeout(() => {
-					saveStateToApi(state).catch(() => {});
+					saveStateToApi(state, authUser.id).catch(() => {});
 				}, 400);
 				return () => clearTimeout(t);
 			}
 		} else {
 			saveState(state);
 		}
-	}, [state, hasLoadedFromApi]);
+	}, [state, hasLoadedFromApi, authUser, authProfile]);
 
 	const { year, month, pedidos = [], gastos = [], ajustes: rawAjustes, metas } = state;
 	const ajustes = rawAjustes && typeof rawAjustes === 'object'
@@ -185,6 +259,63 @@ export default function App() {
 		setSidebarAbierto(false);
 	}
 
+	const isAdmin = authProfile?.role === 'admin';
+	const vistasDisponibles = VISTAS.filter((v) => !v.onlyAdmin || isAdmin);
+
+	useEffect(() => {
+		if (!vistasDisponibles.some((v) => v.id === vista)) {
+			setVista('pedidos');
+		}
+	}, [vistasDisponibles, vista]);
+
+	if (isSupabaseConfigured && !authReady) {
+		return (
+			<div className="auth-shell">
+				<div className="auth-card">
+					<h1 className="auth-title">Sistema de Caja</h1>
+					<p className="auth-helper">Cargando sesión...</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (isSupabaseConfigured && !authUser) {
+		return <AuthView />;
+	}
+
+	if (isSupabaseConfigured && (!authProfileReady || !authProfile)) {
+		return (
+			<div className="auth-shell">
+				<div className="auth-card">
+					<h1 className="auth-title">Sistema de Caja</h1>
+					<p className="auth-helper">Preparando tu cuenta...</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (isSupabaseConfigured && authProfile.status !== 'active') {
+		return (
+			<div className="auth-shell">
+				<div className="auth-card">
+					<h1 className="auth-title">Cuenta {authProfile.status === 'blocked' ? 'bloqueada' : 'pendiente'}</h1>
+					<p className="auth-helper">
+						{authProfile.status === 'blocked'
+							? 'Tu cuenta fue bloqueada por el administrador.'
+							: 'Tu cuenta está creada, pero aún debe ser aprobada por el administrador.'}
+					</p>
+					<button
+						type="button"
+						className="auth-submit"
+						onClick={() => signOut().catch(() => {})}
+					>
+						Cerrar sesión
+					</button>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className={`app ${sidebarAbierto ? 'sidebar-open' : ''}`}>
 			<div className="sidebar-overlay" aria-hidden onClick={() => setSidebarAbierto(false)} />
@@ -199,6 +330,18 @@ export default function App() {
 					<span className="sidebar-toggle-icon" aria-hidden />
 				</button>
 				<h1 className="navbar-titulo">Sistema de Caja</h1>
+				{authUser ? (
+					<div className="navbar-user">
+						<span className="navbar-user-email">{authUser.email}</span>
+						<button
+							type="button"
+							className="navbar-user-logout"
+							onClick={() => signOut().catch(() => {})}
+						>
+							Cerrar sesión
+						</button>
+					</div>
+				) : null}
 				<div className="navbar-metricas">
 					<div className="navbar-metrica">
 						<span className="navbar-metrica-label">Dinero de todo el mes</span>
@@ -245,7 +388,7 @@ export default function App() {
 			<div className="layout-body">
 				<aside className="sidebar">
 					<ul className="sidebar-nav">
-						{VISTAS.map((v) => (
+						{vistasDisponibles.map((v) => (
 							<li key={v.id}>
 								<button
 									type="button"
@@ -305,6 +448,10 @@ export default function App() {
 
 					{vista === 'compromisos' && (
 						<MetasView metas={metas} onMetasChange={setMetas} />
+					)}
+
+					{vista === 'admin-usuarios' && isAdmin && (
+						<AdminUsersView currentUserId={authUser?.id} />
 					)}
 				</main>
 			</div>

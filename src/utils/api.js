@@ -7,6 +7,110 @@ const supabase = url && key ? createClient(url, key) : null;
 /** True si Supabase está configurado; en ese caso la app no debe usar localStorage. */
 export const isSupabaseConfigured = Boolean(supabase);
 
+export async function getCurrentUser() {
+	if (!supabase) return null;
+	const { data, error } = await supabase.auth.getUser();
+	if (error) throw new Error(error.message);
+	return data.user ?? null;
+}
+
+export function onAuthStateChange(handler) {
+	if (!supabase) {
+		return { unsubscribe: () => {} };
+	}
+	const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+		handler(session?.user ?? null);
+	});
+	return data.subscription;
+}
+
+export async function signInWithPassword(email, password) {
+	if (!supabase) throw new Error('Supabase no configurado');
+	const safeEmail = sanitizeString(email, 200).toLowerCase();
+	const safePassword = String(password ?? '');
+	const { data, error } = await supabase.auth.signInWithPassword({
+		email: safeEmail,
+		password: safePassword,
+	});
+	if (error) throw new Error(error.message);
+	return data.user ?? null;
+}
+
+export async function signUpWithPassword(email, password) {
+	if (!supabase) throw new Error('Supabase no configurado');
+	const safeEmail = sanitizeString(email, 200).toLowerCase();
+	const safePassword = String(password ?? '');
+	const { data, error } = await supabase.auth.signUp({
+		email: safeEmail,
+		password: safePassword,
+	});
+	if (error) throw new Error(error.message);
+	return data.user ?? null;
+}
+
+export async function signOut() {
+	if (!supabase) return;
+	const { error } = await supabase.auth.signOut();
+	if (error) throw new Error(error.message);
+}
+
+function sanitizeRole(role) {
+	return role === 'admin' ? 'admin' : 'user';
+}
+
+function sanitizeAccountStatus(status) {
+	return status === 'active' || status === 'blocked' ? status : 'pending';
+}
+
+function mapAccessUser(row) {
+	return {
+		userId: row.user_id,
+		email: row.email || '',
+		role: sanitizeRole(row.role),
+		status: sanitizeAccountStatus(row.status),
+		createdAt: row.created_at || null,
+		updatedAt: row.updated_at || null,
+	};
+}
+
+export async function getMyAccessProfile() {
+	if (!supabase) return null;
+	const { data: authData, error: authError } = await supabase.auth.getUser();
+	if (authError) throw new Error(authError.message);
+	const userId = authData.user?.id;
+	if (!userId) return null;
+	const { data, error } = await supabase
+		.from('app_users')
+		.select('user_id, email, role, status, created_at, updated_at')
+		.eq('user_id', userId)
+		.maybeSingle();
+	if (error) throw new Error(error.message);
+	return data ? mapAccessUser(data) : null;
+}
+
+export async function listAccessUsers() {
+	if (!supabase) throw new Error('Supabase no configurado');
+	const { data, error } = await supabase
+		.from('app_users')
+		.select('user_id, email, role, status, created_at, updated_at')
+		.order('created_at', { ascending: false });
+	if (error) throw new Error(error.message);
+	return (data || []).map(mapAccessUser);
+}
+
+export async function updateAccessUserStatus(userId, status) {
+	if (!supabase) throw new Error('Supabase no configurado');
+	const safeUserId = sanitizeString(userId, 128);
+	const safeStatus = status === 'active' ? 'active' : 'blocked';
+	if (!safeUserId) throw new Error('Usuario inválido');
+	const { error } = await supabase
+		.from('app_users')
+		.update({ status: safeStatus })
+		.eq('user_id', safeUserId);
+	if (error) throw new Error(error.message);
+	return { ok: true };
+}
+
 const MAX_STRING = 500;
 const MAX_ID_LENGTH = 128;
 const SANE_YEAR_MIN = 2000;
@@ -63,19 +167,26 @@ function mapPedido(r) {
 	};
 }
 
-export async function loadStateFromApi(year, month) {
+function requireUserId(userId) {
+	const safe = sanitizeString(userId, 128);
+	if (!safe) throw new Error('Usuario no autenticado');
+	return safe;
+}
+
+export async function loadStateFromApi(year, month, userId) {
 	if (!supabase) throw new Error('Supabase no configurado (VITE_SUPABASE_URL / VITE_SUPABASE_ANNON_KEY)');
+	const ownerId = requireUserId(userId);
 	const now = new Date();
 	let y = Number(year);
 	let m = Number(month);
 	if (!Number.isInteger(y) || y < SANE_YEAR_MIN || y > SANE_YEAR_MAX) y = now.getFullYear();
 	if (!Number.isInteger(m) || m < 1 || m > 12) m = now.getMonth() + 1;
 	const [pedidosRes, gastosRes, metasRes, ajustesRes, ajustesSemanaRes] = await Promise.all([
-		supabase.from('pedidos').select('id, fecha, descripcion, monto, metodo_pago, tipo_venta'),
-		supabase.from('gastos').select('id, tipo, descripcion, monto, fecha'),
-		supabase.from('metas').select('id, nombre, monto'),
-		supabase.from('ajustes').select('dinero_mes_pasado').eq('year', y).eq('month', m).maybeSingle(),
-		supabase.from('ajustes_semana').select('semana, efectivo_inicial, efectivo_caja_bloqueado').eq('year', y).eq('month', m),
+		supabase.from('pedidos').select('id, fecha, descripcion, monto, metodo_pago, tipo_venta').eq('user_id', ownerId),
+		supabase.from('gastos').select('id, tipo, descripcion, monto, fecha').eq('user_id', ownerId),
+		supabase.from('metas').select('id, nombre, monto').eq('user_id', ownerId),
+		supabase.from('ajustes').select('dinero_mes_pasado').eq('user_id', ownerId).eq('year', y).eq('month', m).maybeSingle(),
+		supabase.from('ajustes_semana').select('semana, efectivo_inicial, efectivo_caja_bloqueado').eq('user_id', ownerId).eq('year', y).eq('month', m),
 	]);
 
 	if (pedidosRes.error) throw new Error(pedidosRes.error.message);
@@ -109,13 +220,17 @@ export async function loadStateFromApi(year, month) {
 export async function deletePedidoFromApi(id) {
 	if (!supabase) return;
 	const safeId = sanitizeId(id);
+	const { data, error: userErr } = await supabase.auth.getUser();
+	if (userErr) throw new Error(userErr.message);
+	const ownerId = requireUserId(data.user?.id);
 	if (!safeId) return;
-	const { error } = await supabase.from('pedidos').delete().eq('id', safeId);
+	const { error } = await supabase.from('pedidos').delete().eq('id', safeId).eq('user_id', ownerId);
 	if (error) throw new Error(error.message);
 }
 
-export async function saveStateToApi(state) {
+export async function saveStateToApi(state, userId) {
 	if (!supabase) throw new Error('Supabase no configurado');
+	const ownerId = requireUserId(userId);
 	const { year, month, pedidos = [], gastos = [], metas = [], ajustes = {} } = state;
 	const now = new Date();
 	let y = Number(year);
@@ -129,6 +244,7 @@ export async function saveStateToApi(state) {
 	if (pedidos.length) {
 		const rows = pedidos.map((p) => ({
 			id: sanitizeId(p.id),
+			user_id: ownerId,
 			fecha: sanitizeFecha(p.fecha),
 			descripcion: sanitizeString(p.descripcion),
 			monto: clampMonto(p.monto),
@@ -145,6 +261,7 @@ export async function saveStateToApi(state) {
 	if (gastos.length) {
 		const rows = gastos.map((g) => ({
 			id: sanitizeId(g.id),
+			user_id: ownerId,
 			tipo: g.tipo === 'jhon' ? 'jhon' : 'local',
 			descripcion: sanitizeString(g.descripcion),
 			monto: clampMonto(g.monto),
@@ -160,6 +277,7 @@ export async function saveStateToApi(state) {
 	if (metas.length) {
 		const rows = metas.map((m) => ({
 			id: sanitizeId(m.id),
+			user_id: ownerId,
 			nombre: sanitizeString(m.nombre, 200),
 			monto: clampMonto(m.monto),
 		})).filter((r) => r.id);
@@ -169,11 +287,18 @@ export async function saveStateToApi(state) {
 		}
 	}
 
-	// Upsert ajustes (year, month)
-	const { error: upsA } = await supabase
+	// Ajustes por usuario/mes: borrado + inserción para evitar depender de índices únicos.
+	const { error: delA } = await supabase
 		.from('ajustes')
-		.upsert({ year: y, month: m, dinero_mes_pasado: dineroMesPasado }, { onConflict: 'year,month' });
-	if (upsA) throw new Error(upsA.message);
+		.delete()
+		.eq('user_id', ownerId)
+		.eq('year', y)
+		.eq('month', m);
+	if (delA) throw new Error(delA.message);
+	const { error: insA } = await supabase
+		.from('ajustes')
+		.insert({ user_id: ownerId, year: y, month: m, dinero_mes_pasado: dineroMesPasado });
+	if (insA) throw new Error(insA.message);
 
 	// Upsert ajustes_semana
 	const efectivoCajaBloqueadoSemana = ajustes.efectivoCajaBloqueadoSemana || {};
@@ -184,9 +309,17 @@ export async function saveStateToApi(state) {
 		efectivo_inicial: clampMonto(efectivo_inicial),
 		efectivo_caja_bloqueado: Boolean(efectivoCajaBloqueadoSemana[semana]),
 	}));
+	const { error: delS } = await supabase
+		.from('ajustes_semana')
+		.delete()
+		.eq('user_id', ownerId)
+		.eq('year', y)
+		.eq('month', m);
+	if (delS) throw new Error(delS.message);
 	if (semanasRows.length) {
-		const { error: upsS } = await supabase.from('ajustes_semana').upsert(semanasRows, { onConflict: 'year,month,semana' });
-		if (upsS) throw new Error(upsS.message);
+		const rows = semanasRows.map((r) => ({ ...r, user_id: ownerId }));
+		const { error: insS } = await supabase.from('ajustes_semana').insert(rows);
+		if (insS) throw new Error(insS.message);
 	}
 
 	return { ok: true };
