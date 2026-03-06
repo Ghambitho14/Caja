@@ -32,7 +32,16 @@ export async function signInWithPassword(email, password) {
 		email: safeEmail,
 		password: safePassword,
 	});
-	if (error) throw new Error(error.message);
+	if (error) {
+		const msg = String(error.message || '').toLowerCase();
+		if (msg.includes('invalid login credentials')) {
+			throw new Error('Correo o contraseña inválidos. Si la cuenta es nueva, confirma el correo primero.');
+		}
+		if (msg.includes('email not confirmed')) {
+			throw new Error('Debes confirmar tu correo antes de iniciar sesión.');
+		}
+		throw new Error(error.message);
+	}
 	return data.user ?? null;
 }
 
@@ -45,7 +54,10 @@ export async function signUpWithPassword(email, password) {
 		password: safePassword,
 	});
 	if (error) throw new Error(error.message);
-	return data.user ?? null;
+	return {
+		user: data.user ?? null,
+		session: data.session ?? null,
+	};
 }
 
 export async function signOut() {
@@ -287,18 +299,14 @@ export async function saveStateToApi(state, userId) {
 		}
 	}
 
-	// Ajustes por usuario/mes: borrado + inserción para evitar depender de índices únicos.
-	const { error: delA } = await supabase
+	// Ajustes por usuario/mes
+	const { error: upsA } = await supabase
 		.from('ajustes')
-		.delete()
-		.eq('user_id', ownerId)
-		.eq('year', y)
-		.eq('month', m);
-	if (delA) throw new Error(delA.message);
-	const { error: insA } = await supabase
-		.from('ajustes')
-		.insert({ user_id: ownerId, year: y, month: m, dinero_mes_pasado: dineroMesPasado });
-	if (insA) throw new Error(insA.message);
+		.upsert(
+			{ user_id: ownerId, year: y, month: m, dinero_mes_pasado: dineroMesPasado },
+			{ onConflict: 'user_id,year,month' }
+		);
+	if (upsA) throw new Error(upsA.message);
 
 	// Upsert ajustes_semana
 	const efectivoCajaBloqueadoSemana = ajustes.efectivoCajaBloqueadoSemana || {};
@@ -309,17 +317,12 @@ export async function saveStateToApi(state, userId) {
 		efectivo_inicial: clampMonto(efectivo_inicial),
 		efectivo_caja_bloqueado: Boolean(efectivoCajaBloqueadoSemana[semana]),
 	}));
-	const { error: delS } = await supabase
-		.from('ajustes_semana')
-		.delete()
-		.eq('user_id', ownerId)
-		.eq('year', y)
-		.eq('month', m);
-	if (delS) throw new Error(delS.message);
 	if (semanasRows.length) {
 		const rows = semanasRows.map((r) => ({ ...r, user_id: ownerId }));
-		const { error: insS } = await supabase.from('ajustes_semana').insert(rows);
-		if (insS) throw new Error(insS.message);
+		const { error: upsS } = await supabase
+			.from('ajustes_semana')
+			.upsert(rows, { onConflict: 'user_id,year,month,semana' });
+		if (upsS) throw new Error(upsS.message);
 	}
 
 	return { ok: true };

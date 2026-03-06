@@ -19,9 +19,11 @@ export default function AuthView() {
 			if (mode === 'login') {
 				await signInWithPassword(email, password);
 			} else {
-				const user = await signUpWithPassword(email, password);
-				if (!user) {
-					setNotice('Revisa tu correo para confirmar tu cuenta y luego inicia sesión.');
+				const result = await signUpWithPassword(email, password);
+				if (!result.user) {
+					setNotice('No se pudo crear la cuenta. Intenta nuevamente.');
+				} else if (!result.session) {
+					setNotice('Cuenta creada. Revisa tu correo y confirma la cuenta antes de iniciar sesión.');
 				} else {
 					setNotice('Cuenta creada. Ya puedes usar la app.');
 				}

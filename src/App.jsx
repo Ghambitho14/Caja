@@ -5,6 +5,7 @@ import {
 	totalMesPorTipo,
 	totalSemanaPorTipo,
 	totalGastosPorTipo,
+	totalMetas,
 	dineroEnCuenta,
 	formatMonto,
 	formatFecha,
@@ -236,10 +237,12 @@ export default function App() {
 
 	const totalMesVal = totalMes(pedidos, year, month);
 	const totalTransferenciaMesVal = totalMesPorTipo(pedidos, year, month, 'transferencia');
+	const totalMetasVal = totalMetas(Array.isArray(metas) ? metas : []);
 	const gastosNegocio = totalGastosPorTipo(gastos, 'local', year, month);
 	const gastosPersonales = totalGastosPorTipo(gastos, 'jhon', year, month);
 	const dineroEnCuentaVal = dineroEnCuenta(ajustes, totalTransferenciaMesVal, gastosNegocio, gastosPersonales);
 	const efectivoMasCuentaVal = totalEfectivoSemanaVal + dineroEnCuentaVal;
+	const avanceMetaVal = efectivoMasCuentaVal - totalMetasVal;
 
 	function setPedidos(next) {
 		setState((s) => ({ ...s, pedidos: next }));
@@ -329,10 +332,12 @@ export default function App() {
 				>
 					<span className="sidebar-toggle-icon" aria-hidden />
 				</button>
-				<h1 className="navbar-titulo">Sistema de Caja</h1>
+				<div className="navbar-brand">
+					<h1 className="navbar-titulo">Sistema de Caja</h1>
+					{authUser ? <span className="navbar-user-email">{authUser.email}</span> : null}
+				</div>
 				{authUser ? (
 					<div className="navbar-user">
-						<span className="navbar-user-email">{authUser.email}</span>
 						<button
 							type="button"
 							className="navbar-user-logout"
@@ -351,12 +356,6 @@ export default function App() {
 						<span className="navbar-metrica-label">Dinero de la cuenta</span>
 						<span className="navbar-metrica-valor" title="Transferencias + dinero del mes pasado − gastos del mes">
 							{formatMonto(dineroEnCuentaVal)}
-						</span>
-					</div>
-					<div className="navbar-metrica navbar-metrica-destacada">
-						<span className="navbar-metrica-label">Ventas cobradas en efectivo (esta semana)</span>
-						<span className="navbar-metrica-valor" title="Suma de pedidos cobrados en efectivo en la semana actual (martes a domingo).">
-							{formatMonto(totalEfectivoSemanaVal)}
 						</span>
 					</div>
 					<div className="navbar-metrica navbar-metrica-destacada">
@@ -381,6 +380,16 @@ export default function App() {
 							placeholder="0"
 							aria-label="Dinero de ganancia del mes pasado"
 						/>
+					</div>
+					<div className="navbar-metrica navbar-metrica-destacada navbar-metrica-meta">
+						<span className="navbar-metrica-label">Falta para la meta</span>
+						<span
+							className={`navbar-metrica-valor ${avanceMetaVal < 0 ? 'navbar-metrica-valor-negativo' : 'navbar-metrica-valor-positivo'}`}
+							title="Ventas en efectivo de esta semana + dinero de la cuenta - compromisos/metas."
+						>
+							{avanceMetaVal < 0 ? '-' : '+'}
+							{formatMonto(Math.abs(avanceMetaVal))}
+						</span>
 					</div>
 				</div>
 			</nav>
