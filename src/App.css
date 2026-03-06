@@ -32,6 +32,13 @@
 	gap: 0.4rem;
 }
 
+.navbar-logo {
+	width: 20px;
+	height: 20px;
+	border-radius: 4px;
+	object-fit: cover;
+}
+
 .navbar-brand {
 	display: flex;
 	flex-direction: column;

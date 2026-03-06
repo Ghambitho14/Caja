@@ -10,6 +10,7 @@ export default defineConfig({
 			injectRegister: 'inline',
 			includeAssets: ['icon.png'],
 			manifest: {
+				id: '/',
 				name: 'Sistema de Caja',
 				short_name: 'Caja',
 				description: 'Control de caja, pedidos y gastos',
@@ -20,7 +21,8 @@ export default defineConfig({
 				orientation: 'portrait-primary',
 				lang: 'es',
 				icons: [
-					{ src: '/icon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+					{ src: '/icon.png', sizes: '1024x1024', type: 'image/png', purpose: 'any' },
+					{ src: '/icon.png', sizes: '1024x1024', type: 'image/png', purpose: 'maskable' },
 				],
 			},
 			workbox: {

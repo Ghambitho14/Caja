@@ -333,7 +333,10 @@ export default function App() {
 					<span className="sidebar-toggle-icon" aria-hidden />
 				</button>
 				<div className="navbar-brand">
-					<h1 className="navbar-titulo">Sistema de Caja</h1>
+					<h1 className="navbar-titulo">
+						<img src="/icon.png" alt="" className="navbar-logo" aria-hidden />
+						Sistema de Caja
+					</h1>
 					{authUser ? <span className="navbar-user-email">{authUser.email}</span> : null}
 				</div>
 				{authUser ? (
