@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import MesResumen from './MesResumen';
 import SemanaView from './SemanaView';
+import { exportarExcelMesActual } from '../utils/exportExcel';
 import './DetalleMesView.css';
 
 export default function DetalleMesView({
@@ -19,6 +20,22 @@ export default function DetalleMesView({
 	const [modo, setModo] = useState('mes'); // 'mes' | 'semana'
 	const semanaActual = semanas[semanaIndex] || semanas[0];
 
+	function exportarExcel() {
+		try {
+			exportarExcelMesActual({
+				year,
+				month,
+				pedidos,
+				gastos,
+				metas,
+				ajustes,
+			});
+		} catch (error) {
+			console.error(error);
+			window.alert('No se pudo exportar el Excel. Intenta nuevamente.');
+		}
+	}
+
 	return (
 		<div className="pantalla detalle-mes-view">
 			<div className="detalle-mes-tabs">
@@ -35,6 +52,9 @@ export default function DetalleMesView({
 					onClick={() => setModo('semana')}
 				>
 					Por semana
+				</button>
+				<button type="button" className="btn-exportar-excel" onClick={exportarExcel}>
+					Exportar Excel
 				</button>
 			</div>
 

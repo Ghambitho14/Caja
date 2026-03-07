@@ -232,8 +232,11 @@ export default function App() {
 	const semanas = getSemanasDelMes(year, month);
 	const hoy = formatFecha(new Date());
 	const semanaActualNav = semanas.find((s) => s.fechas && s.fechas.includes(hoy));
+	const semanaActualIndex = semanas.findIndex((s) => s.fechas && s.fechas.includes(hoy));
 	const fechasSemanaActual = semanaActualNav?.fechas || [];
 	const totalEfectivoSemanaVal = totalSemanaPorTipo(pedidos, fechasSemanaActual, 'efectivo');
+	const semanaActualCerrada = semanaActualIndex >= 0 && Boolean(ajustes.efectivoCajaBloqueadoSemana?.[semanaActualIndex]);
+	const totalEfectivoSemanaDisponibleVal = semanaActualCerrada ? 0 : totalEfectivoSemanaVal;
 
 	const totalMesVal = totalMes(pedidos, year, month);
 	const totalTransferenciaMesVal = totalMesPorTipo(pedidos, year, month, 'transferencia');
@@ -241,7 +244,7 @@ export default function App() {
 	const gastosNegocio = totalGastosPorTipo(gastos, 'local', year, month);
 	const gastosPersonales = totalGastosPorTipo(gastos, 'jhon', year, month);
 	const dineroEnCuentaVal = dineroEnCuenta(ajustes, totalTransferenciaMesVal, gastosNegocio, gastosPersonales);
-	const efectivoMasCuentaVal = totalEfectivoSemanaVal + dineroEnCuentaVal;
+	const efectivoMasCuentaVal = totalEfectivoSemanaDisponibleVal + dineroEnCuentaVal;
 	const avanceMetaVal = efectivoMasCuentaVal - totalMetasVal;
 
 	function setPedidos(next) {

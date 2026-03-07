@@ -26,6 +26,18 @@
 	border-color: var(--accent);
 }
 
+.detalle-mes-view .detalle-mes-tabs .btn-exportar-excel {
+	margin-left: auto;
+	background: var(--success);
+	border-color: var(--success);
+	color: #fff;
+}
+
+.detalle-mes-view .detalle-mes-tabs .btn-exportar-excel:hover {
+	background: #0d9f6e;
+	border-color: #0d9f6e;
+}
+
 /* Semana nav (usado dentro de DetalleMesView) */
 .semana-nav {
 	display: flex;
@@ -71,6 +83,9 @@
 	.detalle-mes-view .detalle-mes-tabs button {
 		flex: 1 1 auto;
 		min-width: 0;
+	}
+	.detalle-mes-view .detalle-mes-tabs .btn-exportar-excel {
+		margin-left: 0;
 	}
 	.semana-nav {
 		flex-wrap: wrap;

@@ -86,12 +86,37 @@ export default function PedidosView({
 	const efectivoCajaBloqueadoSemana = ajustes.efectivoCajaBloqueadoSemana || {};
 	const efectivoInicialEstaSemana = Number(efectivoInicialSemana[semanaIndexClamped]) || 0;
 	const bloqueadoEstaSemana = Boolean(efectivoCajaBloqueadoSemana[semanaIndexClamped]);
-	const efectivoCajaSemanaVal = bloqueadoEstaSemana ? efectivoInicialEstaSemana + totalEfectivoSemana : efectivoInicialEstaSemana;
+	const efectivoCajaSemanaVal = bloqueadoEstaSemana ? 0 : efectivoInicialEstaSemana + totalEfectivoSemana;
 
 	const transferenciaDia = totalDiaPorTipo(pedidos, fechaInicial, 'transferencia');
 	const efectivoDia = totalDiaPorTipo(pedidos, fechaInicial, 'efectivo');
 	const efectivoTotalDia = efectivoDia + efectivoInicialEstaSemana;
-	const efectivoTotalSemana = efectivoInicialEstaSemana + totalEfectivoSemana;
+	const efectivoTotalSemana = bloqueadoEstaSemana ? 0 : efectivoInicialEstaSemana + totalEfectivoSemana;
+
+	function cerrarSemana() {
+		if (bloqueadoEstaSemana) return;
+		const totalDeposito = efectivoInicialEstaSemana + totalEfectivoSemana;
+		if (totalDeposito <= 0) {
+			window.alert('No hay efectivo para depositar en esta semana.');
+			return;
+		}
+		const confirmar = window.confirm(
+			`Se depositarán ${formatMonto(totalDeposito)} a Dinero de la cuenta y el efectivo semanal quedará en 0.`
+		);
+		if (!confirmar) return;
+		onAjustesChange({
+			...ajustes,
+			dineroMesPasado: (Number(ajustes.dineroMesPasado) || 0) + totalDeposito,
+			efectivoInicialSemana: {
+				...efectivoInicialSemana,
+				[semanaIndexClamped]: 0,
+			},
+			efectivoCajaBloqueadoSemana: {
+				...efectivoCajaBloqueadoSemana,
+				[semanaIndexClamped]: true,
+			},
+		});
+	}
 
 	return (
 		<section className="pantalla pedidos-view">
@@ -113,12 +138,21 @@ export default function PedidosView({
 						</option>
 					))}
 				</select>
+				<button
+					type="button"
+					className="btn-cerrar-semana"
+					onClick={cerrarSemana}
+					disabled={bloqueadoEstaSemana}
+					title={bloqueadoEstaSemana ? 'Esta semana ya está cerrada' : 'Depositar efectivo de la semana y cerrar'}
+				>
+					{bloqueadoEstaSemana ? 'Semana cerrada' : 'Cerrar semana'}
+				</button>
 				<div className="pedidos-efectivo-caja-semana">
 					<span className="pedidos-efectivo-caja-semana-label">
-						{bloqueadoEstaSemana ? 'Efectivo caja (inicial + entrante)' : 'Efectivo inicial de la semana'}
+						{bloqueadoEstaSemana ? 'Efectivo disponible (semana cerrada)' : 'Efectivo inicial de la semana'}
 					</span>
 					{bloqueadoEstaSemana ? (
-						<span className="pedidos-efectivo-caja-semana-valor" title="Inicial de la semana + ventas en efectivo">
+						<span className="pedidos-efectivo-caja-semana-valor" title="Semana cerrada: efectivo depositado en cuenta">
 							{formatMonto(efectivoCajaSemanaVal)}
 						</span>
 					) : (
@@ -138,18 +172,11 @@ export default function PedidosView({
 							aria-label="Efectivo inicial de la semana"
 						/>
 					)}
-					<label className="pedidos-efectivo-caja-semana-switch">
-						<input
-							type="checkbox"
-							checked={bloqueadoEstaSemana}
-							onChange={(e) => onAjustesChange({
-								...ajustes,
-								efectivoCajaBloqueadoSemana: { ...efectivoCajaBloqueadoSemana, [semanaIndexClamped]: e.target.checked },
-							})}
-							aria-label="Calcular efectivo caja (inicial + entrante)"
-						/>
-						<span>Calcular (inicial + entrante)</span>
-					</label>
+					<span className="pedidos-efectivo-caja-semana-switch">
+						{bloqueadoEstaSemana
+							? 'La semana está cerrada y el efectivo ya se depositó a cuenta.'
+							: 'Usa Cerrar semana cuando deposites el efectivo del cierre semanal.'}
+					</span>
 				</div>
 				<div className="pedidos-detalle-dia">
 					<span className="pedidos-detalle-dia-label">Día {formatFechaDiaMes(fechaInicial)}:</span>
@@ -309,7 +336,7 @@ export default function PedidosView({
 					<strong>{formatMonto(totalEfectivoSemana)}</strong>
 				</div>
 				<div className="pedidos-detalle-efectivo">
-					<span className="pedidos-detalle-label">Efectivo total (semana):</span>
+					<span className="pedidos-detalle-label">Efectivo disponible (semana):</span>
 					<strong>{formatMonto(efectivoTotalSemana)}</strong>
 				</div>
 				<div className="pedidos-detalle-transferencias">

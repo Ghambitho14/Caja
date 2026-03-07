@@ -48,12 +48,6 @@ export default function MesResumen({ year, month, pedidos, gastos, ajustes, onAj
 			<dl className="resumen-grid">
 				<dt>Ventas totales (pedidos del mes)</dt>
 				<dd>{formatMonto(ventasTotales)}</dd>
-				<dt>Gastos del negocio (local)</dt>
-				<dd>{formatMonto(gastosNegocio)}</dd>
-				<dt>Gastos personales</dt>
-				<dd>{formatMonto(gastosPersonales)}</dd>
-				<dt>Gastos totales</dt>
-				<dd>{formatMonto(gastosTotales)}</dd>
 				<dt>Ventas cobradas en efectivo (mes)</dt>
 				<dd>{formatMonto(efectivoTotalVal)}</dd>
 				<dt>Dinero de la cuenta</dt>
@@ -65,6 +59,17 @@ export default function MesResumen({ year, month, pedidos, gastos, ajustes, onAj
 				<dt>Ganancia real</dt>
 				<dd className={gananciaRealVal >= 0 ? 'positivo' : 'negativo'}>{formatMonto(gananciaRealVal)}</dd>
 			</dl>
+			<section className="resumen-gastos-box">
+				<h3 className="resumen-gastos-titulo">Gastos del mes</h3>
+				<dl className="resumen-grid resumen-grid-gastos">
+					<dt>Gastos del negocio (local)</dt>
+					<dd>{formatMonto(gastosNegocio)}</dd>
+					<dt>Gastos personales</dt>
+					<dd>{formatMonto(gastosPersonales)}</dd>
+					<dt>Gastos totales</dt>
+					<dd className="destacado">{formatMonto(gastosTotales)}</dd>
+				</dl>
+			</section>
 		</Wrapper>
 	);
 }

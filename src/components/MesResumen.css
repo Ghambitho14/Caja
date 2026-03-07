@@ -79,3 +79,22 @@
 .resumen-grid dd.negativo {
 	color: var(--danger);
 }
+
+.mes-resumen .resumen-gastos-box {
+	margin-top: 1.25rem;
+	padding: 1rem;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--bg-app);
+}
+
+.mes-resumen .resumen-gastos-titulo {
+	margin: 0 0 0.75rem 0;
+	font-size: 1rem;
+	font-weight: 700;
+	color: var(--text);
+}
+
+.mes-resumen .resumen-grid-gastos {
+	gap: 0.5rem 2rem;
+}

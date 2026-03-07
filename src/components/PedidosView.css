@@ -22,6 +22,29 @@
 	min-width: 140px;
 }
 
+.btn-cerrar-semana {
+	padding: 0.5rem 0.85rem;
+	border: 1px solid var(--accent);
+	border-radius: var(--radius-sm);
+	background: var(--accent);
+	color: #fff;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn-cerrar-semana:hover:not(:disabled) {
+	background: var(--accent-hover);
+	border-color: var(--accent-hover);
+}
+
+.btn-cerrar-semana:disabled {
+	background: var(--bg-app);
+	border-color: var(--border);
+	color: var(--text-muted);
+	cursor: not-allowed;
+}
+
 .pedidos-efectivo-caja-semana {
 	display: flex;
 	flex-wrap: wrap;
