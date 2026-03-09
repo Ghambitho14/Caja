@@ -49,7 +49,7 @@ function estadoInicial() {
 		month: now.getMonth() + 1,
 		pedidos: [],
 		gastos: [],
-		ajustes: { dineroMesPasado: 0, efectivoInicialSemana: {}, efectivoCajaBloqueadoSemana: {} },
+		ajustes: { dineroMesPasado: 0, efectivoInicialSemana: {}, efectivoCajaBloqueadoSemana: {}, efectivoInicialBloqueadoSemana: {} },
 		metas: METAS_INICIALES,
 	};
 }
@@ -156,6 +156,7 @@ export default function App() {
 							dineroMesPasado: Number(rawAjustes.dineroMesPasado ?? rawAjustes.dinero_mes_pasado) || 0,
 							efectivoInicialSemana: rawAjustes.efectivoInicialSemana && typeof rawAjustes.efectivoInicialSemana === 'object' ? rawAjustes.efectivoInicialSemana : {},
 							efectivoCajaBloqueadoSemana: rawAjustes.efectivoCajaBloqueadoSemana && typeof rawAjustes.efectivoCajaBloqueadoSemana === 'object' ? rawAjustes.efectivoCajaBloqueadoSemana : {},
+							efectivoInicialBloqueadoSemana: rawAjustes.efectivoInicialBloqueadoSemana && typeof rawAjustes.efectivoInicialBloqueadoSemana === 'object' ? rawAjustes.efectivoInicialBloqueadoSemana : {},
 						}
 						: undefined;
 					setState((s) => ({
@@ -193,6 +194,7 @@ export default function App() {
 						dineroMesPasado: Number(rawA.dineroMesPasado ?? rawA.dinero_mes_pasado) || 0,
 						efectivoInicialSemana: rawA.efectivoInicialSemana && typeof rawA.efectivoInicialSemana === 'object' ? rawA.efectivoInicialSemana : {},
 						efectivoCajaBloqueadoSemana: rawA.efectivoCajaBloqueadoSemana && typeof rawA.efectivoCajaBloqueadoSemana === 'object' ? rawA.efectivoCajaBloqueadoSemana : {},
+						efectivoInicialBloqueadoSemana: rawA.efectivoInicialBloqueadoSemana && typeof rawA.efectivoInicialBloqueadoSemana === 'object' ? rawA.efectivoInicialBloqueadoSemana : {},
 					}
 					: undefined;
 				setState((s) => ({
@@ -227,16 +229,26 @@ export default function App() {
 			dineroMesPasado: Number(rawAjustes.dineroMesPasado ?? rawAjustes.dinero_mes_pasado) || 0,
 			efectivoInicialSemana: rawAjustes.efectivoInicialSemana && typeof rawAjustes.efectivoInicialSemana === 'object' ? rawAjustes.efectivoInicialSemana : {},
 			efectivoCajaBloqueadoSemana: rawAjustes.efectivoCajaBloqueadoSemana && typeof rawAjustes.efectivoCajaBloqueadoSemana === 'object' ? rawAjustes.efectivoCajaBloqueadoSemana : {},
-		}
-		: { dineroMesPasado: 0, efectivoInicialSemana: {}, efectivoCajaBloqueadoSemana: {} };
+			efectivoInicialBloqueadoSemana: rawAjustes.efectivoInicialBloqueadoSemana && typeof rawAjustes.efectivoInicialBloqueadoSemana === 'object' ? rawAjustes.efectivoInicialBloqueadoSemana : {},
+					}
+					: { dineroMesPasado: 0, efectivoInicialSemana: {}, efectivoCajaBloqueadoSemana: {}, efectivoInicialBloqueadoSemana: {} };
 	const semanas = getSemanasDelMes(year, month);
 	const hoy = formatFecha(new Date());
-	const semanaActualNav = semanas.find((s) => s.fechas && s.fechas.includes(hoy));
-	const semanaActualIndex = semanas.findIndex((s) => s.fechas && s.fechas.includes(hoy));
+	let semanaActualNav = semanas.find((s) => s.fechas && s.fechas.includes(hoy));
+	// Si hoy es lunes (no hay semana que contenga hoy), usar la semana que terminó ayer para sumar todo su efectivo.
+	if (!semanaActualNav && new Date().getDay() === 1) {
+		const ayer = new Date();
+		ayer.setDate(ayer.getDate() - 1);
+		const ayerStr = formatFecha(ayer);
+		semanaActualNav = semanas.find((s) => s.fechas?.length && s.fechas[s.fechas.length - 1] === ayerStr);
+	}
+	const semanaActualIndex = semanaActualNav ? semanas.findIndex((s) => s === semanaActualNav) : -1;
 	const fechasSemanaActual = semanaActualNav?.fechas || [];
 	const totalEfectivoSemanaVal = totalSemanaPorTipo(pedidos, fechasSemanaActual, 'efectivo');
 	const semanaActualCerrada = semanaActualIndex >= 0 && Boolean(ajustes.efectivoCajaBloqueadoSemana?.[semanaActualIndex]);
-	const totalEfectivoSemanaDisponibleVal = semanaActualCerrada ? 0 : totalEfectivoSemanaVal;
+	const efectivoInicialSemanaActual = Number(ajustes.efectivoInicialSemana?.[semanaActualIndex]) || 0;
+	// Todo el efectivo de la semana = efectivo inicial + ventas en efectivo (cuando la semana no está cerrada).
+	const efectivoSemanaCompletoVal = semanaActualCerrada ? 0 : efectivoInicialSemanaActual + totalEfectivoSemanaVal;
 
 	const totalMesVal = totalMes(pedidos, year, month);
 	const totalTransferenciaMesVal = totalMesPorTipo(pedidos, year, month, 'transferencia');
@@ -244,7 +256,8 @@ export default function App() {
 	const gastosNegocio = totalGastosPorTipo(gastos, 'local', year, month);
 	const gastosPersonales = totalGastosPorTipo(gastos, 'jhon', year, month);
 	const dineroEnCuentaVal = dineroEnCuenta(ajustes, totalTransferenciaMesVal, gastosNegocio, gastosPersonales);
-	const efectivoMasCuentaVal = totalEfectivoSemanaDisponibleVal + dineroEnCuentaVal;
+	// Efectivo semana (inicial + ventas) + cuenta: mismo valor para la tarjeta y para "Falta para la meta".
+	const efectivoMasCuentaVal = efectivoSemanaCompletoVal + dineroEnCuentaVal;
 	const avanceMetaVal = efectivoMasCuentaVal - totalMetasVal;
 
 	function setPedidos(next) {
@@ -365,8 +378,8 @@ export default function App() {
 						</span>
 					</div>
 					<div className="navbar-metrica navbar-metrica-destacada">
-						<span className="navbar-metrica-label">Ventas efectivo (semana) + Cuenta</span>
-						<span className="navbar-metrica-valor" title="Ventas en efectivo de esta semana + dinero de la cuenta">
+						<span className="navbar-metrica-label">Efectivo semana + Cuenta</span>
+						<span className="navbar-metrica-valor" title="Todo el efectivo de la semana (inicial + ventas) + dinero de la cuenta">
 							{formatMonto(efectivoMasCuentaVal)}
 						</span>
 					</div>
@@ -391,7 +404,7 @@ export default function App() {
 						<span className="navbar-metrica-label">Falta para la meta</span>
 						<span
 							className={`navbar-metrica-valor ${avanceMetaVal < 0 ? 'navbar-metrica-valor-negativo' : 'navbar-metrica-valor-positivo'}`}
-							title="Ventas en efectivo de esta semana + dinero de la cuenta - compromisos/metas."
+							title="Efectivo de la semana (inicial + ventas) + cuenta - compromisos."
 						>
 							{avanceMetaVal < 0 ? '-' : '+'}
 							{formatMonto(Math.abs(avanceMetaVal))}

@@ -198,7 +198,7 @@ export async function loadStateFromApi(year, month, userId) {
 		supabase.from('gastos').select('id, tipo, descripcion, monto, fecha').eq('user_id', ownerId),
 		supabase.from('metas').select('id, nombre, monto').eq('user_id', ownerId),
 		supabase.from('ajustes').select('dinero_mes_pasado').eq('user_id', ownerId).eq('year', y).eq('month', m).maybeSingle(),
-		supabase.from('ajustes_semana').select('semana, efectivo_inicial, efectivo_caja_bloqueado').eq('user_id', ownerId).eq('year', y).eq('month', m),
+		supabase.from('ajustes_semana').select('semana, efectivo_inicial, efectivo_caja_bloqueado, efectivo_inicial_bloqueado').eq('user_id', ownerId).eq('year', y).eq('month', m),
 	]);
 
 	if (pedidosRes.error) throw new Error(pedidosRes.error.message);
@@ -209,21 +209,32 @@ export async function loadStateFromApi(year, month, userId) {
 
 	const pedidos = (pedidosRes.data || []).map(mapPedido);
 	const gastos = gastosRes.data || [];
-	const metas = metasRes.data || [];
+	// Deduplicar metas por id por si hubo duplicados en DB (evita doble conteo en "Falta para la meta").
+	const metasRaw = metasRes.data || [];
+	const seenMetaIds = new Set();
+	const metas = metasRaw.filter((m) => {
+		const id = m?.id;
+		if (!id || seenMetaIds.has(id)) return false;
+		seenMetaIds.add(id);
+		return true;
+	});
 	const row = ajustesRes.data;
 	const efectivoInicialSemana = {};
 	const efectivoCajaBloqueadoSemana = {};
+	const efectivoInicialBloqueadoSemana = {};
 	(ajustesSemanaRes.data || []).forEach((r) => {
 		efectivoInicialSemana[r.semana] = Number(r.efectivo_inicial) || 0;
-		efectivoCajaBloqueadoSemana[r.semana] = Boolean(r.efectivo_caja_bloqueado);
+		efectivoCajaBloqueadoSemana[r.semana] = r.efectivo_caja_bloqueado === true;
+		efectivoInicialBloqueadoSemana[r.semana] = r.efectivo_inicial_bloqueado === true;
 	});
 	const ajustes = row
 		? {
 			dineroMesPasado: Number(row.dinero_mes_pasado) || 0,
 			efectivoInicialSemana,
 			efectivoCajaBloqueadoSemana,
+			efectivoInicialBloqueadoSemana,
 		}
-		: { dineroMesPasado: 0, efectivoInicialSemana, efectivoCajaBloqueadoSemana: {} };
+		: { dineroMesPasado: 0, efectivoInicialSemana, efectivoCajaBloqueadoSemana: {}, efectivoInicialBloqueadoSemana: {} };
 
 	return { pedidos, gastos, metas, ajustes };
 }
@@ -285,7 +296,9 @@ export async function saveStateToApi(state, userId) {
 		}
 	}
 
-	// Metas: upsert. Solo excluimos filas sin id.
+	// Metas: reemplazar todo el conjunto para que los eliminados en la UI se borren en la DB.
+	const { error: delMetas } = await supabase.from('metas').delete().eq('user_id', ownerId);
+	if (delMetas) throw new Error(delMetas.message);
 	if (metas.length) {
 		const rows = metas.map((m) => ({
 			id: sanitizeId(m.id),
@@ -308,15 +321,25 @@ export async function saveStateToApi(state, userId) {
 		);
 	if (upsA) throw new Error(upsA.message);
 
-	// Upsert ajustes_semana
+	// Upsert ajustes_semana (incluir semanas que solo tengan bloqueo, aunque no tengan efectivo_inicial)
 	const efectivoCajaBloqueadoSemana = ajustes.efectivoCajaBloqueadoSemana || {};
-	const semanasRows = Object.entries(efectivoInicialSemana).map(([semana, efectivo_inicial]) => ({
-		year: y,
-		month: m,
-		semana: Math.min(10, Math.max(0, parseInt(semana, 10) || 0)),
-		efectivo_inicial: clampMonto(efectivo_inicial),
-		efectivo_caja_bloqueado: Boolean(efectivoCajaBloqueadoSemana[semana]),
-	}));
+	const efectivoInicialBloqueadoSemana = ajustes.efectivoInicialBloqueadoSemana || {};
+	const semanasKeys = new Set([
+		...Object.keys(efectivoInicialSemana),
+		...Object.keys(efectivoCajaBloqueadoSemana),
+		...Object.keys(efectivoInicialBloqueadoSemana),
+	]);
+	const semanasRows = Array.from(semanasKeys).map((semana) => {
+		const sem = Math.min(10, Math.max(0, parseInt(semana, 10) || 0));
+		return {
+			year: y,
+			month: m,
+			semana: sem,
+			efectivo_inicial: clampMonto(efectivoInicialSemana[semana]),
+			efectivo_caja_bloqueado: Boolean(efectivoCajaBloqueadoSemana[semana]),
+			efectivo_inicial_bloqueado: Boolean(efectivoInicialBloqueadoSemana[semana]),
+		};
+	});
 	if (semanasRows.length) {
 		const rows = semanasRows.map((r) => ({ ...r, user_id: ownerId }));
 		const { error: upsS } = await supabase
