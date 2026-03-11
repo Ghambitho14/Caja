@@ -86,7 +86,7 @@ export function exportarExcelMesActual({ year, month, pedidos, gastos, metas, aj
 		rows.push([
 			String(p.fecha || ''),
 			String(p.descripcion || ''),
-			p.tipoVenta === 'transferencia' ? 'Transferencia' : 'Efectivo',
+			p.tipoVenta === 'transferencia' ? 'Transferencia' : p.tipoVenta === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
 			toSafeNumber(p.monto),
 		]);
 	});

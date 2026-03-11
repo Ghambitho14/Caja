@@ -145,7 +145,7 @@ export default function App() {
 							fecha,
 							descripcion: p.descripcion ?? '',
 							monto: Number(p.monto) || 0,
-							tipoVenta: p.tipoVenta === 'transferencia' ? 'transferencia' : 'efectivo',
+							tipoVenta: p.tipoVenta === 'transferencia' ? 'transferencia' : p.tipoVenta === 'tarjeta' ? 'tarjeta' : 'efectivo',
 						};
 					});
 					const gastos = Array.isArray(loaded.gastos) ? loaded.gastos : (loaded.gastos ?? []);
@@ -184,7 +184,7 @@ export default function App() {
 					fecha: p.fecha ? String(p.fecha).slice(0, 10) : '',
 					descripcion: p.descripcion ?? '',
 					monto: Number(p.monto) || 0,
-					tipoVenta: p.tipoVenta === 'transferencia' ? 'transferencia' : 'efectivo',
+					tipoVenta: p.tipoVenta === 'transferencia' ? 'transferencia' : p.tipoVenta === 'tarjeta' ? 'tarjeta' : 'efectivo',
 				}));
 				const gastos = Array.isArray(local.gastos) ? local.gastos : [];
 				const metas = Array.isArray(local.metas) && local.metas.length ? local.metas : undefined;

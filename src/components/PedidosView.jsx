@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { formatFecha, formatFechaDiaMes, formatMonto, totalDia, totalSemana, totalDiaPorTipo, totalSemanaPorTipo } from '../utils/calculos';
+import { formatFecha, formatFechaDiaMes, formatMonto, totalDia, totalSemana, totalMes, totalDiaPorTipo, totalSemanaPorTipo, totalSemanaPorTipoExacto, totalMesPorTipo } from '../utils/calculos';
 import { id } from '../utils/storage';
 import './PedidosView.css';
 
@@ -24,6 +24,19 @@ export default function PedidosView({
 
 	const semanaIndexClamped = Math.min(semanaIndex, Math.max(0, semanas.length - 1));
 	const semanaActual = semanas[semanaIndexClamped]?.fechas || [];
+
+	// Al cargar o cambiar mes: seleccionar la semana actual (no siempre la primera).
+	useEffect(() => {
+		if (semanas.length === 0) return;
+		const hoy = formatFecha(new Date());
+		let idx = semanas.findIndex((s) => s.fechas && s.fechas.includes(hoy));
+		if (idx < 0 && new Date().getDay() === 1) {
+			const manana = new Date();
+			manana.setDate(manana.getDate() + 1);
+			idx = semanas.findIndex((s) => s.fechas && s.fechas.includes(formatFecha(manana)));
+		}
+		if (idx >= 0) setSemanaIndex(idx);
+	}, [year, month, semanas.length]);
 
 	useEffect(() => {
 		if (semanaIndex >= semanas.length) setSemanaIndex(Math.max(0, semanas.length - 1));
@@ -72,7 +85,7 @@ export default function PedidosView({
 		setEditando(pedidoId);
 		setDescripcion(p.descripcion || '');
 		setMonto(String(p.monto));
-		setTipoVenta(p.tipoVenta || 'efectivo');
+		setTipoVenta(p.tipoVenta === 'transferencia' || p.tipoVenta === 'tarjeta' ? p.tipoVenta : 'efectivo');
 		requestAnimationFrame(() => {
 			formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 		});
@@ -81,6 +94,8 @@ export default function PedidosView({
 	const totalSemanaVal = totalSemana(pedidos, semanaActual);
 	const totalEfectivoSemana = totalSemanaPorTipo(pedidos, semanaActual, 'efectivo');
 	const totalTransferenciaSemana = totalSemanaPorTipo(pedidos, semanaActual, 'transferencia');
+	const totalTransferenciaSoloSemana = totalSemanaPorTipoExacto(pedidos, semanaActual, 'transferencia');
+	const totalTarjetaSemana = totalSemanaPorTipoExacto(pedidos, semanaActual, 'tarjeta');
 
 	const efectivoInicialSemana = ajustes.efectivoInicialSemana || {};
 	const efectivoCajaBloqueadoSemana = ajustes.efectivoCajaBloqueadoSemana || {};
@@ -258,6 +273,13 @@ export default function PedidosView({
 					>
 						Transferencia
 					</button>
+					<button
+						type="button"
+						className={`btn-tipo ${tipoVenta === 'tarjeta' ? 'active' : ''}`}
+						onClick={() => setTipoVenta('tarjeta')}
+					>
+						Tarjeta
+					</button>
 				</div>
 				<button type="submit">{editando ? 'Guardar' : 'Agregar'}</button>
 				{editando && (
@@ -283,7 +305,7 @@ export default function PedidosView({
 						<li key={p.id}>
 							<span className="pedido-desc">{p.descripcion || '—'}</span>
 							<span className={`pedido-tipo tipo-${p.tipoVenta || 'efectivo'}`}>
-								{p.tipoVenta === 'transferencia' ? 'Transferencia' : 'Efectivo'}
+								{p.tipoVenta === 'transferencia' ? 'Transferencia' : p.tipoVenta === 'tarjeta' ? 'Tarjeta' : 'Efectivo'}
 							</span>
 							<span className="pedido-monto">{formatMonto(p.monto)}</span>
 							<button type="button" className="btn-editar" onClick={() => editar(p)}>
@@ -335,7 +357,7 @@ export default function PedidosView({
 											pedidosDelDia.map((p) => (
 												<tr key={p.id}>
 													<td>{p.descripcion || '—'}</td>
-													<td className={`tipo-${p.tipoVenta || 'efectivo'}`}>{p.tipoVenta === 'transferencia' ? 'Transferencia' : 'Efectivo'}</td>
+													<td className={`tipo-${p.tipoVenta || 'efectivo'}`}>{p.tipoVenta === 'transferencia' ? 'Transferencia' : p.tipoVenta === 'tarjeta' ? 'Tarjeta' : 'Efectivo'}</td>
 													<td>{formatMonto(p.monto)}</td>
 												</tr>
 											))
@@ -357,38 +379,38 @@ export default function PedidosView({
 			<div className="pedidos-detalle">
 				<h3 className="pedidos-detalle-titulo">Detalle</h3>
 				<div className="pedidos-detalle-efectivo">
-					<span className="pedidos-detalle-label">Efectivo inicial (semana):</span>
-					<strong>{formatMonto(efectivoInicialEstaSemana)}</strong>
-				</div>
-				<div className="pedidos-detalle-efectivo">
-					<span className="pedidos-detalle-label">Efectivo ventas (semana):</span>
-					<strong>{formatMonto(totalEfectivoSemana)}</strong>
-				</div>
-				<div className="pedidos-detalle-efectivo">
-					<span className="pedidos-detalle-label">Efectivo disponible (semana):</span>
+					<span className="pedidos-detalle-label">Efectivo de la semana:</span>
 					<strong>{formatMonto(efectivoTotalSemana)}</strong>
 				</div>
+				<div className="pedidos-detalle-efectivo">
+					<span className="pedidos-detalle-label">Transferencia de la semana:</span>
+					<strong>{formatMonto(totalTransferenciaSoloSemana)}</strong>
+				</div>
+				<div className="pedidos-detalle-efectivo">
+					<span className="pedidos-detalle-label">Tarjeta de la semana:</span>
+					<strong>{formatMonto(totalTarjetaSemana)}</strong>
+				</div>
 				<div className="pedidos-detalle-transferencias">
-					<span className="pedidos-detalle-label">Transferencia por día:</span>
+					<span className="pedidos-detalle-label">Total por semana (efectivo + transferencia + tarjeta):</span>
 					<table className="pedidos-detalle-tabla">
 						<thead>
 							<tr>
-								<th>Día</th>
-								<th>Transferencia</th>
+								<th>Semana</th>
+								<th>Total</th>
 							</tr>
 						</thead>
 						<tbody>
-							{semanaActual.map((fecha) => (
-								<tr key={fecha}>
-									<td>{formatFechaDiaMes(fecha)}</td>
-									<td className="pedidos-detalle-monto">{formatMonto(totalDiaPorTipo(pedidos, fecha, 'transferencia'))}</td>
+							{semanas.map((sem, i) => (
+								<tr key={sem.start ?? i}>
+									<td>Semana {i + 1}</td>
+									<td className="pedidos-detalle-monto">{formatMonto(totalSemana(pedidos, sem.fechas || []))}</td>
 								</tr>
 							))}
 						</tbody>
 						<tfoot>
 							<tr>
-								<td>Total semana</td>
-								<td className="pedidos-detalle-monto pedidos-detalle-total">{formatMonto(totalTransferenciaSemana)}</td>
+								<td>Total mes</td>
+								<td className="pedidos-detalle-monto pedidos-detalle-total">{formatMonto(totalMes(pedidos, year, month))}</td>
 							</tr>
 						</tfoot>
 					</table>

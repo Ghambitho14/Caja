@@ -175,7 +175,7 @@ function mapPedido(r) {
 		descripcion: r.descripcion ?? '',
 		monto: Number(r.monto) || 0,
 		metodoPago: r.metodo_pago ?? undefined,
-		tipoVenta: r.tipo_venta === 'transferencia' ? 'transferencia' : 'efectivo',
+		tipoVenta: r.tipo_venta === 'transferencia' ? 'transferencia' : r.tipo_venta === 'tarjeta' ? 'tarjeta' : 'efectivo',
 	};
 }
 
@@ -272,7 +272,7 @@ export async function saveStateToApi(state, userId) {
 			descripcion: sanitizeString(p.descripcion),
 			monto: clampMonto(p.monto),
 			metodo_pago: sanitizeString(p.metodoPago, 100) || null,
-			tipo_venta: p.tipoVenta === 'transferencia' ? 'transferencia' : 'efectivo',
+			tipo_venta: p.tipoVenta === 'transferencia' ? 'transferencia' : p.tipoVenta === 'tarjeta' ? 'tarjeta' : 'efectivo',
 		})).filter((r) => r.id);
 		if (rows.length) {
 			const { error: upsP } = await supabase.from('pedidos').upsert(rows, { onConflict: 'id' });
