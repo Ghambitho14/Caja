@@ -12,11 +12,11 @@ export function totalSemana(pedidos, fechasSemana) {
 	return fechasSemana.reduce((s, f) => s + totalDia(pedidos, f), 0);
 }
 
-/** Total de un día por tipo: efectivo | transferencia (incluye tarjeta para dinero en cuenta). Sin tipoVenta cuenta como efectivo. */
+/** Total de un día por tipo: efectivo | transferencia | tarjeta. Tarjeta no suma a dinero en cuenta (va a otra cuenta). Sin tipoVenta cuenta como efectivo. */
 export function totalDiaPorTipo(pedidos, fecha, tipo) {
 	const t = p => (p.tipoVenta || 'efectivo');
 	return pedidos
-		.filter((p) => p.fecha === fecha && (t(p) === tipo || (tipo === 'transferencia' && t(p) === 'tarjeta')))
+		.filter((p) => p.fecha === fecha && t(p) === tipo)
 		.reduce((s, p) => s + (Number(p.monto) || 0), 0);
 }
 
@@ -41,13 +41,13 @@ export function totalMes(pedidos, year, month) {
 		.reduce((s, p) => s + (Number(p.monto) || 0), 0);
 }
 
-/** Total del mes por tipo: efectivo | transferencia (incluye tarjeta para dinero en cuenta). Sin tipoVenta cuenta como efectivo. */
+/** Total del mes por tipo: efectivo | transferencia | tarjeta. Solo transferencia suma a dinero en cuenta; tarjeta va a otra cuenta. Sin tipoVenta cuenta como efectivo. */
 export function totalMesPorTipo(pedidos, year, month, tipo) {
 	if (!Array.isArray(pedidos)) return 0;
 	const prefix = `${year}-${String(month).padStart(2, '0')}-`;
 	const t = p => (p.tipoVenta || 'efectivo');
 	return pedidos
-		.filter((p) => p && p.fecha && String(p.fecha).startsWith(prefix) && (t(p) === tipo || (tipo === 'transferencia' && t(p) === 'tarjeta')))
+		.filter((p) => p && p.fecha && String(p.fecha).startsWith(prefix) && t(p) === tipo)
 		.reduce((s, p) => s + (Number(p.monto) || 0), 0);
 }
 
