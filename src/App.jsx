@@ -7,6 +7,7 @@ import {
 	totalGastosPorTipo,
 	totalMetas,
 	dineroEnCuenta,
+	dineroActual,
 	formatMonto,
 	formatFecha,
 } from './utils/calculos';
@@ -252,9 +253,12 @@ export default function App() {
 
 	const totalMesVal = totalMes(pedidos, year, month);
 	const totalTransferenciaMesVal = totalMesPorTipo(pedidos, year, month, 'transferencia');
+	const totalEfectivoMesVal = totalMesPorTipo(pedidos, year, month, 'efectivo');
+	const totalTarjetaMesVal = totalMesPorTipo(pedidos, year, month, 'tarjeta');
 	const totalMetasVal = totalMetas(Array.isArray(metas) ? metas : []);
 	const gastosNegocio = totalGastosPorTipo(gastos, 'local', year, month);
 	const gastosPersonales = totalGastosPorTipo(gastos, 'jhon', year, month);
+	const dineroActualVal = dineroActual(ajustes, totalMesVal, gastosNegocio, gastosPersonales);
 	const dineroEnCuentaVal = dineroEnCuenta(ajustes, totalTransferenciaMesVal, gastosNegocio, gastosPersonales);
 	// Efectivo semana (inicial + ventas) + cuenta: mismo valor para la tarjeta y para "Falta para la meta".
 	const efectivoMasCuentaVal = efectivoSemanaCompletoVal + dineroEnCuentaVal;
@@ -369,13 +373,21 @@ export default function App() {
 				<div className="navbar-metricas">
 					<div className="navbar-metrica">
 						<span className="navbar-metrica-label">Dinero de todo el mes</span>
-						<span className="navbar-metrica-valor">{formatMonto(totalMesVal)}</span>
+						<span className="navbar-metrica-valor">{formatMonto(dineroActualVal)}</span>
 					</div>
 					<div className="navbar-metrica navbar-metrica-destacada">
 						<span className="navbar-metrica-label">Dinero de la cuenta</span>
 						<span className="navbar-metrica-valor" title="Transferencias + dinero del mes pasado − gastos del mes">
 							{formatMonto(dineroEnCuentaVal)}
 						</span>
+					</div>
+					<div className="navbar-metrica">
+						<span className="navbar-metrica-label">Efectivo del mes</span>
+						<span className="navbar-metrica-valor">{formatMonto(totalEfectivoMesVal)}</span>
+					</div>
+					<div className="navbar-metrica">
+						<span className="navbar-metrica-label">Tarjeta del mes</span>
+						<span className="navbar-metrica-valor">{formatMonto(totalTarjetaMesVal)}</span>
 					</div>
 					<div className="navbar-metrica navbar-metrica-destacada">
 						<span className="navbar-metrica-label">Efectivo semana + Cuenta</span>
