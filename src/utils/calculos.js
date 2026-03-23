@@ -51,10 +51,44 @@ export function totalMesPorTipo(pedidos, year, month, tipo) {
 		.reduce((s, p) => s + (Number(p.monto) || 0), 0);
 }
 
-export function totalGastosPorTipo(gastos, tipo, year, month) {
+/** Índice de semana (0-based) en la que cae la fecha YYYY-MM-DD, o -1 si no está en ninguna (ej. lunes). */
+export function semanaIndexDeFecha(semanas, fechaStr) {
+	if (!fechaStr || !Array.isArray(semanas)) return -1;
+	for (let i = 0; i < semanas.length; i++) {
+		const fechas = semanas[i]?.fechas || [];
+		if (fechas.includes(fechaStr)) return i;
+	}
+	return -1;
+}
+
+/**
+ * Total del mes por tipo (efectivo | tarjeta) excluyendo pedidos en semanas con caja cerrada:
+ * ese dinero ya se depositó a cuenta y no debe figurar como “en caja / pendiente tarjeta”.
+ */
+export function totalMesPorTipoMenosSemanasCerradas(pedidos, year, month, tipo, semanas, efectivoCajaBloqueadoSemana) {
+	if (!Array.isArray(pedidos)) return 0;
+	const prefix = `${year}-${String(month).padStart(2, '0')}-`;
+	const t = (p) => (p.tipoVenta || 'efectivo');
+	const bloqueado = efectivoCajaBloqueadoSemana || {};
+	return pedidos
+		.filter((p) => {
+			if (!p || !p.fecha || !String(p.fecha).startsWith(prefix) || t(p) !== tipo) return false;
+			const idx = semanaIndexDeFecha(semanas, p.fecha);
+			if (idx < 0) return true;
+			return !bloqueado[idx];
+		})
+		.reduce((s, p) => s + (Number(p.monto) || 0), 0);
+}
+
+export function totalGastosPorTipo(gastos, tipo, year, month, fuentePago) {
 	const prefix = `${year}-${String(month).padStart(2, '0')}-`;
 	return gastos
-		.filter((g) => g.tipo === tipo && g.fecha && g.fecha.startsWith(prefix))
+		.filter((g) => {
+			if (g.tipo !== tipo) return false;
+			if (g.fecha && !g.fecha.startsWith(prefix)) return false;
+			if (fuentePago && g.fuentePago !== fuentePago) return false;
+			return true;
+		})
 		.reduce((s, g) => s + (Number(g.monto) || 0), 0);
 }
 

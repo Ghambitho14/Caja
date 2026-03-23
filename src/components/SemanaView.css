@@ -32,6 +32,12 @@
 	border-radius: var(--radius-sm);
 }
 
+.semana-cerrada-aviso {
+	margin: 0 0 0.75rem;
+	font-size: 0.85rem;
+	color: var(--text-muted);
+}
+
 .semana-efectivo-total {
 	margin-bottom: 1rem;
 	font-size: 0.95rem;

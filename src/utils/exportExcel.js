@@ -50,9 +50,11 @@ export function exportarExcelMesActual({ year, month, pedidos, gastos, metas, aj
 	const ventasTransferencia = totalMesPorTipo(safePedidos, year, month, 'transferencia');
 	const gastosNegocio = totalGastosPorTipo(safeGastos, 'local', year, month);
 	const gastosPersonales = totalGastosPorTipo(safeGastos, 'jhon', year, month);
+	const gastosNegocioCuenta = totalGastosPorTipo(safeGastos, 'local', year, month, 'cuenta');
+	const gastosPersonalesCuenta = totalGastosPorTipo(safeGastos, 'jhon', year, month, 'cuenta');
 	const gastosTotales = gastosNegocio + gastosPersonales;
 	const dineroInicialVal = dineroInicial(safeAjustes);
-	const dineroEnCuentaVal = dineroEnCuenta(safeAjustes, ventasTransferencia, gastosNegocio, gastosPersonales);
+	const dineroEnCuentaVal = dineroEnCuenta(safeAjustes, ventasTransferencia, gastosNegocioCuenta, gastosPersonalesCuenta);
 	const efectivoMesVal = efectivoTotal(safeAjustes, ventasEfectivo);
 	const dineroActualVal = dineroActual(safeAjustes, ventasTotales, gastosNegocio, gastosPersonales);
 	const compromisosVal = totalMetas(safeMetas);

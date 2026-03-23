@@ -6,7 +6,9 @@ export default function SemanaView({ semana, pedidos, efectivoInicialSemana = 0,
 	const totalSemanaVal = totalSemana(pedidos, fechas);
 	const totalEfectivoSemana = totalSemanaPorTipo(pedidos, fechas, 'efectivo');
 	const efectivoInicial = Number(efectivoInicialSemana) || 0;
-	const efectivoTotalSemana = efectivoInicial + totalEfectivoSemana;
+	const efectivoCajaBloqueadoSemana = ajustes.efectivoCajaBloqueadoSemana || {};
+	const semanaCerrada = Boolean(efectivoCajaBloqueadoSemana[semanaIndex]);
+	const efectivoTotalSemana = semanaCerrada ? 0 : efectivoInicial + totalEfectivoSemana;
 	const Wrapper = embed ? 'div' : 'section';
 	const className = embed ? 'semana-view semana-view-embed' : 'pantalla semana-view';
 
@@ -15,7 +17,7 @@ export default function SemanaView({ semana, pedidos, efectivoInicialSemana = 0,
 			<div className="semana-total">
 				Total semana: <strong>{formatMonto(totalSemanaVal)}</strong>
 			</div>
-			{onAjustesChange && (
+			{onAjustesChange && !semanaCerrada && (
 				<div className="semana-efectivo-inicial">
 					<label>
 						Efectivo inicial de la semana:
@@ -34,6 +36,9 @@ export default function SemanaView({ semana, pedidos, efectivoInicialSemana = 0,
 						/>
 					</label>
 				</div>
+			)}
+			{semanaCerrada && (
+				<p className="semana-cerrada-aviso">Semana cerrada: el efectivo de esta semana ya se depositó a cuenta.</p>
 			)}
 			<div className="semana-efectivo-total">
 				Efectivo total (inicial + ventas): <strong>{formatMonto(efectivoTotalSemana)}</strong>

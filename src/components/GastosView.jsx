@@ -6,6 +6,7 @@ import './GastosView.css';
 export default function GastosView({ year, month, gastos, onGastosChange }) {
 	const [editando, setEditando] = useState(null);
 	const [tipoGasto, setTipoGasto] = useState('local');
+	const [fuentePago, setFuentePago] = useState('cuenta');
 	const [descripcion, setDescripcion] = useState('');
 	const [monto, setMonto] = useState('');
 	const [fecha, setFecha] = useState(formatFecha(new Date()));
@@ -22,7 +23,7 @@ export default function GastosView({ year, month, gastos, onGastosChange }) {
 			onGastosChange(
 				gastos.map((g) =>
 					g.id === editando
-						? { ...g, tipo: tipoGasto, descripcion: descripcion.trim(), monto: montoNum, fecha }
+						? { ...g, tipo: tipoGasto, fuentePago, descripcion: descripcion.trim(), monto: montoNum, fecha }
 						: g
 				)
 			);
@@ -30,17 +31,19 @@ export default function GastosView({ year, month, gastos, onGastosChange }) {
 		} else {
 			onGastosChange([
 				...gastos,
-				{ id: id(), tipo: tipoGasto, descripcion: descripcion.trim(), monto: montoNum, fecha },
+				{ id: id(), tipo: tipoGasto, fuentePago, descripcion: descripcion.trim(), monto: montoNum, fecha },
 			]);
 		}
 		setDescripcion('');
 		setMonto('');
 		setFecha(formatFecha(new Date()));
+		setFuentePago('cuenta');
 	}
 
 	function editar(g) {
 		setEditando(g.id);
 		setTipoGasto(g.tipo || 'local');
+		setFuentePago(g.fuentePago || 'cuenta');
 		setDescripcion(g.descripcion || '');
 		setMonto(String(g.monto));
 		setFecha(g.fecha || formatFecha(new Date()));
@@ -99,6 +102,23 @@ export default function GastosView({ year, month, gastos, onGastosChange }) {
 						Gastos personales
 					</button>
 				</div>
+				<div className="form-gasto-tipo">
+					<span className="form-gasto-tipo-label">Pagar con:</span>
+					<button
+						type="button"
+						className={`btn-tipo-gasto ${fuentePago === 'cuenta' ? 'active' : ''}`}
+						onClick={() => setFuentePago('cuenta')}
+					>
+						Dinero de cuenta
+					</button>
+					<button
+						type="button"
+						className={`btn-tipo-gasto ${fuentePago === 'efectivo' ? 'active' : ''}`}
+						onClick={() => setFuentePago('efectivo')}
+					>
+						Efectivo
+					</button>
+				</div>
 				<button type="submit">{editando ? 'Guardar' : 'Agregar gasto'}</button>
 				{editando && (
 					<button
@@ -109,6 +129,7 @@ export default function GastosView({ year, month, gastos, onGastosChange }) {
 							setMonto('');
 							setFecha(formatFecha(new Date()));
 							setTipoGasto('local');
+							setFuentePago('cuenta');
 						}}
 					>
 						Cancelar
@@ -125,6 +146,9 @@ export default function GastosView({ year, month, gastos, onGastosChange }) {
 							<li key={g.id}>
 								<span className={`gasto-tipo-badge ${g.tipo === 'local' ? 'tipo-negocio' : 'tipo-personal'}`}>
 									{g.tipo === 'local' ? 'Negocio' : 'Personal'}
+								</span>
+								<span className={`gasto-tipo-badge ${g.fuentePago === 'efectivo' ? 'tipo-efectivo' : 'tipo-cuenta'}`}>
+									{g.fuentePago === 'efectivo' ? 'Efectivo' : 'Cuenta'}
 								</span>
 								<span className="gasto-desc">{g.descripcion || '—'}</span>
 								<span className="gasto-monto">{formatMonto(g.monto)}</span>

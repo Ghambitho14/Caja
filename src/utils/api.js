@@ -195,6 +195,8 @@ export async function loadStateFromApi(year, month, userId) {
 	if (!Number.isInteger(m) || m < 1 || m > 12) m = now.getMonth() + 1;
 	const [pedidosRes, gastosRes, metasRes, ajustesRes, ajustesSemanaRes] = await Promise.all([
 		supabase.from('pedidos').select('id, fecha, descripcion, monto, metodo_pago, tipo_venta').eq('user_id', ownerId),
+		// Lista explícita sin fuente_pago: si pedimos una columna que no existe en Supabase, falla todo loadStateFromApi.
+		// Tras migración: ALTER gastos ADD fuente_pago ... y añade fuente_pago al select y al upsert de gastos.
 		supabase.from('gastos').select('id, tipo, descripcion, monto, fecha').eq('user_id', ownerId),
 		supabase.from('metas').select('id, nombre, monto').eq('user_id', ownerId),
 		supabase.from('ajustes').select('dinero_mes_pasado').eq('user_id', ownerId).eq('year', y).eq('month', m).maybeSingle(),
@@ -208,7 +210,10 @@ export async function loadStateFromApi(year, month, userId) {
 	if (ajustesSemanaRes.error) throw new Error(ajustesSemanaRes.error.message);
 
 	const pedidos = (pedidosRes.data || []).map(mapPedido);
-	const gastos = gastosRes.data || [];
+	const gastos = (gastosRes.data || []).map((g) => ({
+		...g,
+		fuentePago: g.fuente_pago === 'efectivo' ? 'efectivo' : 'cuenta',
+	}));
 	// Deduplicar metas por id por si hubo duplicados en DB (evita doble conteo en "Falta para la meta").
 	const metasRaw = metasRes.data || [];
 	const seenMetaIds = new Set();
@@ -282,6 +287,7 @@ export async function saveStateToApi(state, userId) {
 
 	// Gastos: upsert. Solo excluimos filas sin id.
 	if (gastos.length) {
+		// No enviar fuente_pago hasta tener la columna en Supabase (ALTER TABLE ... ADD fuente_pago text DEFAULT 'cuenta').
 		const rows = gastos.map((g) => ({
 			id: sanitizeId(g.id),
 			user_id: ownerId,

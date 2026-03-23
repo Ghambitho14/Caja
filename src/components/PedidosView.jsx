@@ -104,22 +104,23 @@ export default function PedidosView({
 	const semanaCerrada = Boolean(efectivoCajaBloqueadoSemana[semanaIndexClamped]);
 	const efectivoInicialBloqueadoEstaSemana = Boolean(efectivoInicialBloqueadoSemana[semanaIndexClamped]);
 	const efectivoCajaSemanaVal = semanaCerrada ? 0 : efectivoInicialEstaSemana + totalEfectivoSemana;
+	// Con semana cerrada, efectivo y tarjeta ya fueron a cuenta: mostrar 0 en recuadros (los pedidos siguen en lista como historial).
+	const efectivoTotalSemana = semanaCerrada ? 0 : efectivoInicialEstaSemana + totalEfectivoSemana;
+	const tarjetaSemanaEnCaja = semanaCerrada ? 0 : totalTarjetaSemana;
 
 	const transferenciaDia = totalDiaPorTipo(pedidos, fechaInicial, 'transferencia');
-	const efectivoDia = totalDiaPorTipo(pedidos, fechaInicial, 'efectivo');
-	const efectivoTotalDia = efectivoDia + efectivoInicialEstaSemana;
-	const efectivoTotalSemana = semanaCerrada ? 0 : efectivoInicialEstaSemana + totalEfectivoSemana;
 	const efectivoInicialEditable = !semanaCerrada && !efectivoInicialBloqueadoEstaSemana;
 
 	function cerrarSemana() {
 		if (semanaCerrada) return;
-		const totalDeposito = efectivoInicialEstaSemana + totalEfectivoSemana;
+		const totalDeposito = efectivoInicialEstaSemana + totalEfectivoSemana + totalTarjetaSemana;
 		if (totalDeposito <= 0) {
 			window.alert('No hay efectivo para depositar en esta semana.');
 			return;
 		}
+		const efectivoDeposito = efectivoInicialEstaSemana + totalEfectivoSemana;
 		const confirmar = window.confirm(
-			`Se depositarán ${formatMonto(totalDeposito)} a Dinero de la cuenta y el efectivo semanal quedará en 0.`
+			`Se depositarán ${formatMonto(totalDeposito)} a Dinero de la cuenta (${formatMonto(efectivoDeposito)} efectivo + ${formatMonto(totalTarjetaSemana)} tarjeta) y el efectivo semanal quedará en 0.`
 		);
 		if (!confirmar) return;
 		onAjustesChange({
@@ -388,7 +389,7 @@ export default function PedidosView({
 				</div>
 				<div className="pedidos-detalle-efectivo">
 					<span className="pedidos-detalle-label">Tarjeta de la semana:</span>
-					<strong>{formatMonto(totalTarjetaSemana)}</strong>
+					<strong>{formatMonto(tarjetaSemanaEnCaja)}</strong>
 				</div>
 				<div className="pedidos-detalle-transferencias">
 					<span className="pedidos-detalle-label">Total por semana (efectivo + transferencia + tarjeta):</span>

@@ -175,6 +175,16 @@
 	color: var(--success);
 }
 
+.gasto-tipo-badge.tipo-cuenta {
+	background: rgba(168, 85, 247, 0.12);
+	color: #a855f7;
+}
+
+.gasto-tipo-badge.tipo-efectivo {
+	background: rgba(34, 197, 94, 0.12);
+	color: #22c55e;
+}
+
 .lista-gastos .gasto-desc {
 	flex: 1;
 	min-width: 0;

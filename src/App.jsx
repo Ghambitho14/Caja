@@ -3,6 +3,7 @@ import {
 	getSemanasDelMes,
 	totalMes,
 	totalMesPorTipo,
+	totalMesPorTipoMenosSemanasCerradas,
 	totalSemanaPorTipo,
 	totalGastosPorTipo,
 	totalMetas,
@@ -168,9 +169,10 @@ export default function App() {
 						ajustes: ajustes || s.ajustes,
 					}));
 					setHasLoadedFromApi(true);
-				} catch (_) {
+				} catch (err) {
 					// No cargar desde localStorage: evitar escribir estado vacío o viejo a Supabase.
 					// El estado se queda en estadoInicial; no se marca hasLoadedFromApi, así que no se guardará en API.
+					console.error('[Caja] Error cargando datos desde Supabase:', err);
 				}
 				return;
 			}
@@ -253,13 +255,29 @@ export default function App() {
 
 	const totalMesVal = totalMes(pedidos, year, month);
 	const totalTransferenciaMesVal = totalMesPorTipo(pedidos, year, month, 'transferencia');
-	const totalEfectivoMesVal = totalMesPorTipo(pedidos, year, month, 'efectivo');
-	const totalTarjetaMesVal = totalMesPorTipo(pedidos, year, month, 'tarjeta');
+	const totalEfectivoMesVal = totalMesPorTipoMenosSemanasCerradas(
+		pedidos,
+		year,
+		month,
+		'efectivo',
+		semanas,
+		ajustes.efectivoCajaBloqueadoSemana
+	);
+	const totalTarjetaMesVal = totalMesPorTipoMenosSemanasCerradas(
+		pedidos,
+		year,
+		month,
+		'tarjeta',
+		semanas,
+		ajustes.efectivoCajaBloqueadoSemana
+	);
 	const totalMetasVal = totalMetas(Array.isArray(metas) ? metas : []);
 	const gastosNegocio = totalGastosPorTipo(gastos, 'local', year, month);
 	const gastosPersonales = totalGastosPorTipo(gastos, 'jhon', year, month);
+	const gastosNegocioCuenta = totalGastosPorTipo(gastos, 'local', year, month, 'cuenta');
+	const gastosPersonalesCuenta = totalGastosPorTipo(gastos, 'jhon', year, month, 'cuenta');
 	const dineroActualVal = dineroActual(ajustes, totalMesVal, gastosNegocio, gastosPersonales);
-	const dineroEnCuentaVal = dineroEnCuenta(ajustes, totalTransferenciaMesVal, gastosNegocio, gastosPersonales);
+	const dineroEnCuentaVal = dineroEnCuenta(ajustes, totalTransferenciaMesVal, gastosNegocioCuenta, gastosPersonalesCuenta);
 	// Efectivo semana (inicial + ventas) + cuenta: mismo valor para la tarjeta y para "Falta para la meta".
 	const efectivoMasCuentaVal = efectivoSemanaCompletoVal + dineroEnCuentaVal;
 	const avanceMetaVal = efectivoMasCuentaVal - totalMetasVal;
@@ -383,11 +401,21 @@ export default function App() {
 					</div>
 					<div className="navbar-metrica">
 						<span className="navbar-metrica-label">Efectivo del mes</span>
-						<span className="navbar-metrica-valor">{formatMonto(totalEfectivoMesVal)}</span>
+						<span
+							className="navbar-metrica-valor"
+							title="Ventas en efectivo del mes, sin contar semanas ya cerradas en caja (ya en cuenta)"
+						>
+							{formatMonto(totalEfectivoMesVal)}
+						</span>
 					</div>
 					<div className="navbar-metrica">
 						<span className="navbar-metrica-label">Tarjeta del mes</span>
-						<span className="navbar-metrica-valor">{formatMonto(totalTarjetaMesVal)}</span>
+						<span
+							className="navbar-metrica-valor"
+							title="Ventas con tarjeta del mes, sin contar semanas ya cerradas en caja (ya en cuenta)"
+						>
+							{formatMonto(totalTarjetaMesVal)}
+						</span>
 					</div>
 					<div className="navbar-metrica navbar-metrica-destacada">
 						<span className="navbar-metrica-label">Efectivo semana + Cuenta</span>
