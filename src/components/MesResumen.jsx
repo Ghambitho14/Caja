@@ -8,6 +8,7 @@ import {
 	dineroEnCuenta,
 	efectivoTotal,
 	gananciaReal,
+	totalDepositosMes,
 	nombreMes,
 	formatMonto,
 } from '../utils/calculos';
@@ -22,6 +23,7 @@ export default function MesResumen({ year, month, pedidos, gastos, ajustes, onAj
 	const gastosTotales = gastosNegocio + gastosPersonales;
 	const compromisos = totalMetas(metas);
 	const dineroInicialVal = dineroInicial(ajustes);
+	const depositosMesVal = totalDepositosMes(ajustes);
 	const dineroEnCuentaVal = dineroEnCuenta(ajustes, totalTransferenciaMes, gastosNegocio, gastosPersonales);
 	const efectivoTotalVal = efectivoTotal(ajustes, totalEfectivoMes);
 	const dineroActualVal = dineroActual(ajustes, ventasTotales, gastosNegocio, gastosPersonales);
@@ -52,6 +54,8 @@ export default function MesResumen({ year, month, pedidos, gastos, ajustes, onAj
 				<dd>{formatMonto(efectivoTotalVal)}</dd>
 				<dt>Dinero de la cuenta</dt>
 				<dd>{formatMonto(dineroEnCuentaVal)}</dd>
+				<dt>Depósitos por cierre de semana (mes)</dt>
+				<dd>{formatMonto(depositosMesVal)}</dd>
 				<dt>Dinero actual</dt>
 				<dd className="destacado">{formatMonto(dineroActualVal)}</dd>
 				<dt>Compromisos del negocio</dt>

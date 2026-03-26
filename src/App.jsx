@@ -51,7 +51,16 @@ function estadoInicial() {
 		month: now.getMonth() + 1,
 		pedidos: [],
 		gastos: [],
-		ajustes: { dineroMesPasado: 0, efectivoInicialSemana: {}, efectivoCajaBloqueadoSemana: {}, efectivoInicialBloqueadoSemana: {} },
+		ajustes: {
+			dineroMesPasado: 0,
+			migracionDepositosV1: false,
+			efectivoInicialSemana: {},
+			efectivoCajaBloqueadoSemana: {},
+			efectivoInicialBloqueadoSemana: {},
+			depositoTotalSemana: {},
+			depositoEfectivoSemana: {},
+			depositoTarjetaSemana: {},
+		},
 		metas: METAS_INICIALES,
 	};
 }
@@ -156,9 +165,13 @@ export default function App() {
 					const ajustes = rawAjustes && typeof rawAjustes === 'object'
 						? {
 							dineroMesPasado: Number(rawAjustes.dineroMesPasado ?? rawAjustes.dinero_mes_pasado) || 0,
+							migracionDepositosV1: rawAjustes.migracionDepositosV1 === true || rawAjustes.migracion_depositos_v1 === true,
 							efectivoInicialSemana: rawAjustes.efectivoInicialSemana && typeof rawAjustes.efectivoInicialSemana === 'object' ? rawAjustes.efectivoInicialSemana : {},
 							efectivoCajaBloqueadoSemana: rawAjustes.efectivoCajaBloqueadoSemana && typeof rawAjustes.efectivoCajaBloqueadoSemana === 'object' ? rawAjustes.efectivoCajaBloqueadoSemana : {},
 							efectivoInicialBloqueadoSemana: rawAjustes.efectivoInicialBloqueadoSemana && typeof rawAjustes.efectivoInicialBloqueadoSemana === 'object' ? rawAjustes.efectivoInicialBloqueadoSemana : {},
+							depositoTotalSemana: rawAjustes.depositoTotalSemana && typeof rawAjustes.depositoTotalSemana === 'object' ? rawAjustes.depositoTotalSemana : {},
+							depositoEfectivoSemana: rawAjustes.depositoEfectivoSemana && typeof rawAjustes.depositoEfectivoSemana === 'object' ? rawAjustes.depositoEfectivoSemana : {},
+							depositoTarjetaSemana: rawAjustes.depositoTarjetaSemana && typeof rawAjustes.depositoTarjetaSemana === 'object' ? rawAjustes.depositoTarjetaSemana : {},
 						}
 						: undefined;
 					setState((s) => ({
@@ -230,11 +243,24 @@ export default function App() {
 	const ajustes = rawAjustes && typeof rawAjustes === 'object'
 		? {
 			dineroMesPasado: Number(rawAjustes.dineroMesPasado ?? rawAjustes.dinero_mes_pasado) || 0,
+			migracionDepositosV1: rawAjustes.migracionDepositosV1 === true || rawAjustes.migracion_depositos_v1 === true,
 			efectivoInicialSemana: rawAjustes.efectivoInicialSemana && typeof rawAjustes.efectivoInicialSemana === 'object' ? rawAjustes.efectivoInicialSemana : {},
 			efectivoCajaBloqueadoSemana: rawAjustes.efectivoCajaBloqueadoSemana && typeof rawAjustes.efectivoCajaBloqueadoSemana === 'object' ? rawAjustes.efectivoCajaBloqueadoSemana : {},
 			efectivoInicialBloqueadoSemana: rawAjustes.efectivoInicialBloqueadoSemana && typeof rawAjustes.efectivoInicialBloqueadoSemana === 'object' ? rawAjustes.efectivoInicialBloqueadoSemana : {},
-					}
-					: { dineroMesPasado: 0, efectivoInicialSemana: {}, efectivoCajaBloqueadoSemana: {}, efectivoInicialBloqueadoSemana: {} };
+			depositoTotalSemana: rawAjustes.depositoTotalSemana && typeof rawAjustes.depositoTotalSemana === 'object' ? rawAjustes.depositoTotalSemana : {},
+			depositoEfectivoSemana: rawAjustes.depositoEfectivoSemana && typeof rawAjustes.depositoEfectivoSemana === 'object' ? rawAjustes.depositoEfectivoSemana : {},
+			depositoTarjetaSemana: rawAjustes.depositoTarjetaSemana && typeof rawAjustes.depositoTarjetaSemana === 'object' ? rawAjustes.depositoTarjetaSemana : {},
+		}
+		: {
+			dineroMesPasado: 0,
+			migracionDepositosV1: false,
+			efectivoInicialSemana: {},
+			efectivoCajaBloqueadoSemana: {},
+			efectivoInicialBloqueadoSemana: {},
+			depositoTotalSemana: {},
+			depositoEfectivoSemana: {},
+			depositoTarjetaSemana: {},
+		};
 	const semanas = getSemanasDelMes(year, month);
 	const hoy = formatFecha(new Date());
 	let semanaActualNav = semanas.find((s) => s.fechas && s.fechas.includes(hoy));
@@ -424,7 +450,7 @@ export default function App() {
 						</span>
 					</div>
 					<div className="navbar-metrica">
-						<span className="navbar-metrica-label">Dinero de ganancia del mes pasado</span>
+						<span className="navbar-metrica-label">Saldo inicial (mes pasado)</span>
 						<input
 							type="text"
 							className="navbar-metrica-input"
@@ -437,7 +463,7 @@ export default function App() {
 								});
 							}}
 							placeholder="0"
-							aria-label="Dinero de ganancia del mes pasado"
+							aria-label="Saldo inicial (mes pasado)"
 						/>
 					</div>
 					<div className="navbar-metrica navbar-metrica-destacada navbar-metrica-meta">

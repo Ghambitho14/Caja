@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSemanasDelMes, totalSemanaPorTipoExacto } from './calculos';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANNON_KEY;
@@ -193,20 +194,62 @@ export async function loadStateFromApi(year, month, userId) {
 	let m = Number(month);
 	if (!Number.isInteger(y) || y < SANE_YEAR_MIN || y > SANE_YEAR_MAX) y = now.getFullYear();
 	if (!Number.isInteger(m) || m < 1 || m > 12) m = now.getMonth() + 1;
-	const [pedidosRes, gastosRes, metasRes, ajustesRes, ajustesSemanaRes] = await Promise.all([
+	const [pedidosRes, gastosRes, metasRes] = await Promise.all([
 		supabase.from('pedidos').select('id, fecha, descripcion, monto, metodo_pago, tipo_venta').eq('user_id', ownerId),
 		// Lista explícita sin fuente_pago: si pedimos una columna que no existe en Supabase, falla todo loadStateFromApi.
 		// Tras migración: ALTER gastos ADD fuente_pago ... y añade fuente_pago al select y al upsert de gastos.
 		supabase.from('gastos').select('id, tipo, descripcion, monto, fecha').eq('user_id', ownerId),
 		supabase.from('metas').select('id, nombre, monto').eq('user_id', ownerId),
-		supabase.from('ajustes').select('dinero_mes_pasado').eq('user_id', ownerId).eq('year', y).eq('month', m).maybeSingle(),
-		supabase.from('ajustes_semana').select('semana, efectivo_inicial, efectivo_caja_bloqueado, efectivo_inicial_bloqueado').eq('user_id', ownerId).eq('year', y).eq('month', m),
 	]);
 
 	if (pedidosRes.error) throw new Error(pedidosRes.error.message);
 	if (gastosRes.error) throw new Error(gastosRes.error.message);
 	if (metasRes.error) throw new Error(metasRes.error.message);
+
+	let ajustesRes = await supabase
+		.from('ajustes')
+		.select('dinero_mes_pasado, migracion_depositos_v1')
+		.eq('user_id', ownerId)
+		.eq('year', y)
+		.eq('month', m)
+		.maybeSingle();
+	let soportaMigracionDepositosV1 = true;
+	if (ajustesRes.error) {
+		// Compat: si la columna de migración aún no existe, leer solo dinero_mes_pasado.
+		const msg = String(ajustesRes.error.message || '').toLowerCase();
+		if (msg.includes('migracion_depositos_v1') && msg.includes('does not exist')) {
+			soportaMigracionDepositosV1 = false;
+			ajustesRes = await supabase
+				.from('ajustes')
+				.select('dinero_mes_pasado')
+				.eq('user_id', ownerId)
+				.eq('year', y)
+				.eq('month', m)
+				.maybeSingle();
+		}
+	}
 	if (ajustesRes.error) throw new Error(ajustesRes.error.message);
+
+	let ajustesSemanaRes = await supabase
+		.from('ajustes_semana')
+		.select('semana, efectivo_inicial, efectivo_caja_bloqueado, efectivo_inicial_bloqueado, deposito_total, deposito_efectivo, deposito_tarjeta, deposito_creado_at')
+		.eq('user_id', ownerId)
+		.eq('year', y)
+		.eq('month', m);
+	let soportaColumnasDeposito = true;
+	if (ajustesSemanaRes.error) {
+		// Compat: si las columnas de depósito aún no existen, leer solo campos antiguos.
+		const msg = String(ajustesSemanaRes.error.message || '').toLowerCase();
+		if ((msg.includes('deposito_total') || msg.includes('deposito_efectivo') || msg.includes('deposito_tarjeta')) && msg.includes('does not exist')) {
+			soportaColumnasDeposito = false;
+			ajustesSemanaRes = await supabase
+				.from('ajustes_semana')
+				.select('semana, efectivo_inicial, efectivo_caja_bloqueado, efectivo_inicial_bloqueado')
+				.eq('user_id', ownerId)
+				.eq('year', y)
+				.eq('month', m);
+		}
+	}
 	if (ajustesSemanaRes.error) throw new Error(ajustesSemanaRes.error.message);
 
 	const pedidos = (pedidosRes.data || []).map(mapPedido);
@@ -227,19 +270,110 @@ export async function loadStateFromApi(year, month, userId) {
 	const efectivoInicialSemana = {};
 	const efectivoCajaBloqueadoSemana = {};
 	const efectivoInicialBloqueadoSemana = {};
+	const depositoTotalSemana = {};
+	const depositoEfectivoSemana = {};
+	const depositoTarjetaSemana = {};
 	(ajustesSemanaRes.data || []).forEach((r) => {
 		efectivoInicialSemana[r.semana] = Number(r.efectivo_inicial) || 0;
 		efectivoCajaBloqueadoSemana[r.semana] = r.efectivo_caja_bloqueado === true;
 		efectivoInicialBloqueadoSemana[r.semana] = r.efectivo_inicial_bloqueado === true;
+		depositoTotalSemana[r.semana] = Number(r.deposito_total) || 0;
+		depositoEfectivoSemana[r.semana] = Number(r.deposito_efectivo) || 0;
+		depositoTarjetaSemana[r.semana] = Number(r.deposito_tarjeta) || 0;
 	});
-	const ajustes = row
+	let ajustes = row
 		? {
 			dineroMesPasado: Number(row.dinero_mes_pasado) || 0,
+			migracionDepositosV1: row.migracion_depositos_v1 === true,
 			efectivoInicialSemana,
 			efectivoCajaBloqueadoSemana,
 			efectivoInicialBloqueadoSemana,
+			depositoTotalSemana,
+			depositoEfectivoSemana,
+			depositoTarjetaSemana,
 		}
-		: { dineroMesPasado: 0, efectivoInicialSemana, efectivoCajaBloqueadoSemana: {}, efectivoInicialBloqueadoSemana: {} };
+		: {
+			dineroMesPasado: 0,
+			migracionDepositosV1: false,
+			efectivoInicialSemana,
+			efectivoCajaBloqueadoSemana: {},
+			efectivoInicialBloqueadoSemana: {},
+			depositoTotalSemana,
+			depositoEfectivoSemana,
+			depositoTarjetaSemana,
+		};
+
+	// Migración best-effort: mover depósitos semanales fuera de dinero_mes_pasado.
+	// Nota: no se puede reconstruir el efectivo inicial histórico (fue puesto en 0 al cerrar semana),
+	// así que estimamos depósito = ventas efectivo semana + ventas tarjeta semana (asume efectivo inicial = 0).
+	if (soportaMigracionDepositosV1 && soportaColumnasDeposito && row && row.migracion_depositos_v1 !== true) {
+		try {
+			const semanas = getSemanasDelMes(y, m);
+			const pedidosAll = pedidos;
+			const migrarRows = [];
+			let totalMigrado = 0;
+
+			for (let semana = 0; semana < semanas.length; semana++) {
+				const cerrada = Boolean(efectivoCajaBloqueadoSemana[semana]);
+				if (!cerrada) continue;
+				const yaTieneDeposito = (Number(depositoTotalSemana[semana]) || 0) > 0;
+				if (yaTieneDeposito) continue;
+				const fechas = semanas[semana]?.fechas || [];
+				const ventaEfectivo = totalSemanaPorTipoExacto(pedidosAll, fechas, 'efectivo');
+				const ventaTarjeta = totalSemanaPorTipoExacto(pedidosAll, fechas, 'tarjeta');
+				const depositoTotal = clampMonto(ventaEfectivo + ventaTarjeta);
+				if (depositoTotal <= 0) continue;
+
+				migrarRows.push({
+					user_id: ownerId,
+					year: y,
+					month: m,
+					semana,
+					deposito_total: depositoTotal,
+					deposito_efectivo: clampMonto(ventaEfectivo),
+					deposito_tarjeta: clampMonto(ventaTarjeta),
+					deposito_creado_at: new Date().toISOString(),
+				});
+				totalMigrado += depositoTotal;
+			}
+
+			if (migrarRows.length) {
+				const { error: upsMig } = await supabase
+					.from('ajustes_semana')
+					.upsert(migrarRows, { onConflict: 'user_id,year,month,semana' });
+				if (upsMig) throw new Error(upsMig.message);
+			}
+
+			const dineroMesPasadoActual = Number(row.dinero_mes_pasado) || 0;
+			const dineroMesPasadoCorregido = clampMonto(Math.max(0, dineroMesPasadoActual - totalMigrado));
+			const { error: upsA } = await supabase
+				.from('ajustes')
+				.upsert(
+					{ user_id: ownerId, year: y, month: m, dinero_mes_pasado: dineroMesPasadoCorregido, migracion_depositos_v1: true },
+					{ onConflict: 'user_id,year,month' }
+				);
+			if (upsA) throw new Error(upsA.message);
+
+			// Actualizar estado devuelto (lo que la UI verá en esta carga)
+			if (migrarRows.length) {
+				migrarRows.forEach((r) => {
+					depositoTotalSemana[r.semana] = Number(r.deposito_total) || 0;
+					depositoEfectivoSemana[r.semana] = Number(r.deposito_efectivo) || 0;
+					depositoTarjetaSemana[r.semana] = Number(r.deposito_tarjeta) || 0;
+				});
+			}
+			ajustes = {
+				...ajustes,
+				dineroMesPasado: dineroMesPasadoCorregido,
+				migracionDepositosV1: true,
+				depositoTotalSemana: { ...depositoTotalSemana },
+				depositoEfectivoSemana: { ...depositoEfectivoSemana },
+				depositoTarjetaSemana: { ...depositoTarjetaSemana },
+			};
+		} catch (_err) {
+			// Si la migración falla, no bloqueamos la carga (evitar dejar la app inutilizable).
+		}
+	}
 
 	return { pedidos, gastos, metas, ajustes };
 }
@@ -267,6 +401,10 @@ export async function saveStateToApi(state, userId) {
 	if (!Number.isInteger(m) || m < 1 || m > 12) m = now.getMonth() + 1;
 	const dineroMesPasado = clampMonto(ajustes.dineroMesPasado);
 	const efectivoInicialSemana = ajustes.efectivoInicialSemana || {};
+	const depositoTotalSemana = ajustes.depositoTotalSemana || {};
+	const depositoEfectivoSemana = ajustes.depositoEfectivoSemana || {};
+	const depositoTarjetaSemana = ajustes.depositoTarjetaSemana || {};
+	const migracionDepositosV1 = ajustes.migracionDepositosV1 === true;
 
 	// Pedidos: solo upsert. Saneamos pero no filtramos filas (evitar pérdida de datos).
 	if (pedidos.length) {
@@ -319,13 +457,25 @@ export async function saveStateToApi(state, userId) {
 	}
 
 	// Ajustes por usuario/mes
-	const { error: upsA } = await supabase
+	let upsA = await supabase
 		.from('ajustes')
 		.upsert(
-			{ user_id: ownerId, year: y, month: m, dinero_mes_pasado: dineroMesPasado },
+			{ user_id: ownerId, year: y, month: m, dinero_mes_pasado: dineroMesPasado, migracion_depositos_v1: migracionDepositosV1 },
 			{ onConflict: 'user_id,year,month' }
 		);
-	if (upsA) throw new Error(upsA.message);
+	if (upsA.error) {
+		// Compat: si aún no existe la columna de migración.
+		const msg = String(upsA.error.message || '').toLowerCase();
+		if (msg.includes('migracion_depositos_v1') && msg.includes('does not exist')) {
+			upsA = await supabase
+				.from('ajustes')
+				.upsert(
+					{ user_id: ownerId, year: y, month: m, dinero_mes_pasado: dineroMesPasado },
+					{ onConflict: 'user_id,year,month' }
+				);
+		}
+	}
+	if (upsA.error) throw new Error(upsA.error.message);
 
 	// Upsert ajustes_semana (incluir semanas que solo tengan bloqueo, aunque no tengan efectivo_inicial)
 	const efectivoCajaBloqueadoSemana = ajustes.efectivoCajaBloqueadoSemana || {};
@@ -334,6 +484,9 @@ export async function saveStateToApi(state, userId) {
 		...Object.keys(efectivoInicialSemana),
 		...Object.keys(efectivoCajaBloqueadoSemana),
 		...Object.keys(efectivoInicialBloqueadoSemana),
+		...Object.keys(depositoTotalSemana),
+		...Object.keys(depositoEfectivoSemana),
+		...Object.keys(depositoTarjetaSemana),
 	]);
 	const semanasRows = Array.from(semanasKeys).map((semana) => {
 		const sem = Math.min(10, Math.max(0, parseInt(semana, 10) || 0));
@@ -344,14 +497,35 @@ export async function saveStateToApi(state, userId) {
 			efectivo_inicial: clampMonto(efectivoInicialSemana[semana]),
 			efectivo_caja_bloqueado: Boolean(efectivoCajaBloqueadoSemana[semana]),
 			efectivo_inicial_bloqueado: Boolean(efectivoInicialBloqueadoSemana[semana]),
+			deposito_total: clampMonto(depositoTotalSemana[semana]),
+			deposito_efectivo: clampMonto(depositoEfectivoSemana[semana]),
+			deposito_tarjeta: clampMonto(depositoTarjetaSemana[semana]),
 		};
 	});
 	if (semanasRows.length) {
 		const rows = semanasRows.map((r) => ({ ...r, user_id: ownerId }));
-		const { error: upsS } = await supabase
+		let upsS = await supabase
 			.from('ajustes_semana')
 			.upsert(rows, { onConflict: 'user_id,year,month,semana' });
-		if (upsS) throw new Error(upsS.message);
+		if (upsS.error) {
+			// Compat: si aún no existen columnas de depósito.
+			const msg = String(upsS.error.message || '').toLowerCase();
+			if ((msg.includes('deposito_total') || msg.includes('deposito_efectivo') || msg.includes('deposito_tarjeta')) && msg.includes('does not exist')) {
+				const compatRows = rows.map((r) => ({
+					user_id: r.user_id,
+					year: r.year,
+					month: r.month,
+					semana: r.semana,
+					efectivo_inicial: r.efectivo_inicial,
+					efectivo_caja_bloqueado: r.efectivo_caja_bloqueado,
+					efectivo_inicial_bloqueado: r.efectivo_inicial_bloqueado,
+				}));
+				upsS = await supabase
+					.from('ajustes_semana')
+					.upsert(compatRows, { onConflict: 'user_id,year,month,semana' });
+			}
+		}
+		if (upsS.error) throw new Error(upsS.error.message);
 	}
 
 	return { ok: true };

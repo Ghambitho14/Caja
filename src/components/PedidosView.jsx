@@ -100,6 +100,9 @@ export default function PedidosView({
 	const efectivoInicialSemana = ajustes.efectivoInicialSemana || {};
 	const efectivoCajaBloqueadoSemana = ajustes.efectivoCajaBloqueadoSemana || {};
 	const efectivoInicialBloqueadoSemana = ajustes.efectivoInicialBloqueadoSemana || {};
+	const depositoTotalSemana = ajustes.depositoTotalSemana || {};
+	const depositoEfectivoSemana = ajustes.depositoEfectivoSemana || {};
+	const depositoTarjetaSemana = ajustes.depositoTarjetaSemana || {};
 	const efectivoInicialEstaSemana = Number(efectivoInicialSemana[semanaIndexClamped]) || 0;
 	const semanaCerrada = Boolean(efectivoCajaBloqueadoSemana[semanaIndexClamped]);
 	const efectivoInicialBloqueadoEstaSemana = Boolean(efectivoInicialBloqueadoSemana[semanaIndexClamped]);
@@ -125,7 +128,6 @@ export default function PedidosView({
 		if (!confirmar) return;
 		onAjustesChange({
 			...ajustes,
-			dineroMesPasado: (Number(ajustes.dineroMesPasado) || 0) + totalDeposito,
 			efectivoInicialSemana: {
 				...efectivoInicialSemana,
 				[semanaIndexClamped]: 0,
@@ -137,6 +139,18 @@ export default function PedidosView({
 			efectivoInicialBloqueadoSemana: {
 				...efectivoInicialBloqueadoSemana,
 				[semanaIndexClamped]: true,
+			},
+			depositoTotalSemana: {
+				...depositoTotalSemana,
+				[semanaIndexClamped]: totalDeposito,
+			},
+			depositoEfectivoSemana: {
+				...depositoEfectivoSemana,
+				[semanaIndexClamped]: efectivoDeposito,
+			},
+			depositoTarjetaSemana: {
+				...depositoTarjetaSemana,
+				[semanaIndexClamped]: totalTarjetaSemana,
 			},
 		});
 	}

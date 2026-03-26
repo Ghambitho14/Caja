@@ -103,6 +103,12 @@ export function dineroInicial(ajustes) {
 	return dineroMesPasado;
 }
 
+export function totalDepositosMes(ajustes) {
+	const a = ajustes || {};
+	const depositos = a.depositoTotalSemana && typeof a.depositoTotalSemana === 'object' ? a.depositoTotalSemana : {};
+	return Object.values(depositos).reduce((s, v) => s + (Number(v) || 0), 0);
+}
+
 /** Dinero actual = dinero inicial (mes pasado) + ventas − gastos */
 export function dineroActual(ajustes, totalMes, gastosLocal, gastosPersonales) {
 	return dineroInicial(ajustes) + (Number(totalMes) || 0) - (Number(gastosLocal) || 0) - (Number(gastosPersonales) || 0);
@@ -115,14 +121,15 @@ export function dineroActualSinCaja(ajustes, totalMes, gastosLocal, gastosPerson
 	return dineroMesPasado + (Number(totalMes) || 0) - (Number(gastosLocal) || 0) - (Number(gastosPersonales) || 0);
 }
 
-/** Dinero en cuenta = dinero del mes pasado + transferencias del mes − gastos */
+/** Dinero en cuenta = arrastre mes pasado + depósitos semanales + transferencias del mes − gastos (pagados desde cuenta) */
 export function dineroEnCuenta(ajustes, totalTransferenciaMes, gastosLocal, gastosPersonales) {
 	const a = ajustes || {};
 	const dineroMesPasado = Number(a.dineroMesPasado ?? a.dinero_mes_pasado) || 0;
+	const depositos = totalDepositosMes(a);
 	const transferencias = Number(totalTransferenciaMes) || 0;
 	const gastosL = Number(gastosLocal) || 0;
 	const gastosP = Number(gastosPersonales) || 0;
-	return dineroMesPasado + transferencias - gastosL - gastosP;
+	return dineroMesPasado + depositos + transferencias - gastosL - gastosP;
 }
 
 /** Dinero en efectivo (mes) = ventas en efectivo del mes; el efectivo de caja es solo semanal */

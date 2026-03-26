@@ -9,6 +9,7 @@ import {
 	dineroEnCuenta,
 	efectivoTotal,
 	gananciaReal,
+	totalDepositosMes,
 } from './calculos';
 
 function monthPrefix(year, month) {
@@ -54,6 +55,7 @@ export function exportarExcelMesActual({ year, month, pedidos, gastos, metas, aj
 	const gastosPersonalesCuenta = totalGastosPorTipo(safeGastos, 'jhon', year, month, 'cuenta');
 	const gastosTotales = gastosNegocio + gastosPersonales;
 	const dineroInicialVal = dineroInicial(safeAjustes);
+	const depositosMesVal = totalDepositosMes(safeAjustes);
 	const dineroEnCuentaVal = dineroEnCuenta(safeAjustes, ventasTransferencia, gastosNegocioCuenta, gastosPersonalesCuenta);
 	const efectivoMesVal = efectivoTotal(safeAjustes, ventasEfectivo);
 	const dineroActualVal = dineroActual(safeAjustes, ventasTotales, gastosNegocio, gastosPersonales);
@@ -75,6 +77,7 @@ export function exportarExcelMesActual({ year, month, pedidos, gastos, metas, aj
 	rows.push(['Gastos personales', gastosPersonales]);
 	rows.push(['Gastos totales', gastosTotales]);
 	rows.push(['Dinero mes pasado', dineroInicialVal]);
+	rows.push(['Depositos cierre de semana (mes)', depositosMesVal]);
 	rows.push(['Dinero en cuenta', dineroEnCuentaVal]);
 	rows.push(['Efectivo del mes', efectivoMesVal]);
 	rows.push(['Dinero actual', dineroActualVal]);
