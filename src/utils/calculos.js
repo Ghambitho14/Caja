@@ -147,26 +147,33 @@ export function ganancia(dineroEnCuentaVal, totalMetasVal) {
 	return gananciaReal(dineroEnCuentaVal, totalMetasVal);
 }
 
-/** Semanas del mes: martes a domingo (6 días). El lunes no se cuenta. */
+/**
+ * Semanas que se muestran en un mes: bloques de martes a domingo (6 días). El lunes no se cuenta.
+ * Pueden cruzar mes: la semana que contiene el día 1 empieza el martes de esa semana (aunque sea del mes anterior).
+ */
 export function getSemanasDelMes(year, month) {
-	const first = new Date(year, month - 1, 1);
-	const lastDate = new Date(year, month, 0).getDate();
-	const firstDayOfWeek = first.getDay();
-	const diasHastaMartes = (2 - firstDayOfWeek + 7) % 7;
-	const primerMartes = 1 + diasHastaMartes;
-
-	const weeks = [];
+	const monthEnd = new Date(year, month - 1, new Date(year, month, 0).getDate());
 	const prefix = `${year}-${String(month).padStart(2, '0')}-`;
 
-	for (let martes = primerMartes; martes <= lastDate; martes += 7) {
+	let t = new Date(year, month - 1, 1);
+	const dow = t.getDay();
+	const back = (dow - 2 + 7) % 7;
+	t.setDate(t.getDate() - back);
+
+	const weeks = [];
+	while (true) {
 		const fechas = [];
-		for (let d = 0; d < 6; d++) {
-			const diaNum = martes + d;
-			if (diaNum <= lastDate) {
-				fechas.push(`${prefix}${String(diaNum).padStart(2, '0')}`);
-			}
+		for (let i = 0; i < 6; i++) {
+			const d = new Date(t);
+			d.setDate(t.getDate() + i);
+			fechas.push(formatFecha(d));
 		}
-		if (fechas.length) weeks.push({ start: fechas[0], fechas });
+		const overlaps = fechas.some((f) => f.startsWith(prefix));
+		if (overlaps) {
+			weeks.push({ start: fechas[0], fechas });
+		}
+		t.setDate(t.getDate() + 7);
+		if (!overlaps && t > monthEnd) break;
 	}
 	return weeks;
 }
